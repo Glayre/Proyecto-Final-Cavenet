@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import loadExpress from './loaders/express.js';
 import routes from './api/routes/index.js';
 import errorMiddleware from './api/middleware/error.middleware.js';
