@@ -12,16 +12,18 @@ export async function createUser(req, res, next) {
     if (!regex.ci.test(cedula)) return res.status(400).json({ error: 'Cédula inválida (7-8 dígitos numéricos)' });
     if (!regex.email.test(email)) return res.status(400).json({ error: 'Correo electrónico inválido' });
     if (!regex.password.test(password)) return res.status(400).json({ error: 'Contraseña inválida (mínimo 8 caracteres, letras y números)' });
-    if (telefono && !regex.phone.test(telefono)) return res.status(400).json({ error: 'Teléfono inválido (10 dígitos)' });
+    if (telefono && !regex.phone.test(telefono)) return res.status(400).json({ error: 'Teléfono inválido (11 dígitos)' });
     if (!regex.text.test(nombre) || !regex.text.test(apellido)) return res.status(400).json({ error: 'Nombre/Apellido inválido' });
 
     // 🔹 Validaciones de dirección
     if (!sede || !ciudad || !urbanizacion || !calle) {
       return res.status(400).json({ error: 'Debe especificar sede, ciudad, urbanización y calle' });
     }
-    if (!regex.text.test(ciudad)) return res.status(400).json({ error: 'Ciudad inválida' });
-    if (!regex.text.test(urbanizacion)) return res.status(400).json({ error: 'Urbanización inválida' });
-    if (!regex.text.test(calle)) return res.status(400).json({ error: 'Calle inválida' });
+    if (!regex.address.test(sede)) return res.status(400).json({ error: 'Sede inválida' });
+    if (!regex.address.test(ciudad)) return res.status(400).json({ error: 'Ciudad inválida' });
+    if (!regex.address.test(urbanizacion)) return res.status(400).json({ error: 'Urbanización inválida' });
+    if (!regex.address.test(calle)) return res.status(400).json({ error: 'Calle inválida' });
+    if (apartamento && !regex.address.test(apartamento)) return res.status(400).json({ error: 'Apartamento inválido' });
 
     // 🔹 Buscar o crear dirección
     let direccion = await Address.findOne({ sede, ciudad, urbanizacion, calle, apartamento });
@@ -43,7 +45,12 @@ export async function createUser(req, res, next) {
       direccion: direccion._id
     });
 
-    res.status(201).json(user);
+    // 🔹 Popular la dirección antes de responder y ocultar passwordHash
+    const userWithAddress = await User.findById(user._id)
+      .populate('direccion')
+      .select('-passwordHash');
+
+    res.status(201).json(userWithAddress);
   } catch (err) {
     next(err);
   }
@@ -57,7 +64,7 @@ export async function login(req, res, next) {
     if (!regex.email.test(email)) return res.status(400).json({ error: 'Correo inválido' });
     if (!regex.password.test(password)) return res.status(400).json({ error: 'Contraseña inválida' });
 
-    const user = await User.findOne({ email }).populate('direccion');
+    const user = await User.findOne({ email, isDeleted: false }).populate('direccion');
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
     const validPassword = await bcrypt.compare(password, user.passwordHash);
@@ -70,7 +77,12 @@ export async function login(req, res, next) {
       { expiresIn: '1h' }
     );
 
-    res.json({ message: 'Login exitoso', token, user });
+    // 🔹 Ocultar passwordHash en la respuesta
+    const userSafe = await User.findById(user._id)
+      .populate('direccion')
+      .select('-passwordHash');
+
+    res.json({ message: 'Login exitoso', token, user: userSafe });
   } catch (err) {
     next(err);
   }
@@ -87,6 +99,12 @@ export async function updateUser(req, res, next) {
 
     let direccion;
     if (sede && ciudad && urbanizacion && calle) {
+      if (!regex.address.test(sede)) return res.status(400).json({ error: 'Sede inválida' });
+      if (!regex.address.test(ciudad)) return res.status(400).json({ error: 'Ciudad inválida' });
+      if (!regex.address.test(urbanizacion)) return res.status(400).json({ error: 'Urbanización inválida' });
+      if (!regex.address.test(calle)) return res.status(400).json({ error: 'Calle inválida' });
+      if (apartamento && !regex.address.test(apartamento)) return res.status(400).json({ error: 'Apartamento inválido' });
+
       direccion = await Address.findOne({ sede, ciudad, urbanizacion, calle, apartamento });
       if (!direccion) {
         direccion = await Address.create({ sede, ciudad, urbanizacion, calle, apartamento });
@@ -94,8 +112,10 @@ export async function updateUser(req, res, next) {
       req.body.direccion = direccion._id;
     }
 
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true }).populate('direccion');
-    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true })
+      .populate('direccion')
+      .select('-passwordHash');
+    if (!user || user.isDeleted) return res.status(404).json({ error: 'Usuario no encontrado o eliminado' });
 
     res.json(user);
   } catch (err) {
@@ -103,33 +123,43 @@ export async function updateUser(req, res, next) {
   }
 }
 
-// Obtener todos los usuarios
+// Obtener todos los usuarios (solo activos)
 export async function getUsers(req, res, next) {
   try {
-    const users = await User.find().populate('direccion');
+    const users = await User.find({ isDeleted: false })
+      .populate('direccion')
+      .select('-passwordHash');
     res.json(users);
   } catch (err) {
     next(err);
   }
 }
 
-// Obtener usuario por ID
+// Obtener usuario por ID (solo activo)
 export async function getUserById(req, res, next) {
   try {
-    const user = await User.findById(req.params.id).populate('direccion');
-    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const user = await User.findOne({ _id: req.params.id, isDeleted: false })
+      .populate('direccion')
+      .select('-passwordHash');
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado o eliminado' });
     res.json(user);
   } catch (err) {
     next(err);
   }
 }
 
-// Eliminar usuario
+// Soft delete de usuario
 export async function deleteUser(req, res, next) {
   try {
-    const user = await User.findByIdAndDelete(req.params.id);
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { isDeleted: true },
+      { new: true }
+    ).select('-passwordHash');
+
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
-    res.json({ success: true });
+
+    res.json({ success: true, message: 'Usuario marcado como eliminado', user });
   } catch (err) {
     next(err);
   }

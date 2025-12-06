@@ -12,7 +12,8 @@ export default function authMiddleware(required = true) {
     try {
       if (token) {
         const payload = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = { id: payload.sub, role: payload.role };
+        // 🔹 Usa "rol" porque así lo generas en el login
+        req.user = { id: payload.sub, rol: payload.rol };
       }
       next();
     } catch (err) {
@@ -20,3 +21,12 @@ export default function authMiddleware(required = true) {
     }
   };
 }
+
+// 🔹 Función extra para validar administradores
+export function isAdmin(req, res, next) {
+  if (req.user?.rol !== 'admin') {
+    return res.status(403).json({ code: 'FORBIDDEN', message: 'Acceso denegado: solo administradores' });
+  }
+  next();
+}
+

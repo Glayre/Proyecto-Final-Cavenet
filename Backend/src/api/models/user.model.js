@@ -16,6 +16,9 @@ const userSchema = new mongoose.Schema(
     rol: { type: String, enum: ['cliente', 'admin'], default: 'cliente' },
     modoAcceso: { type: String, enum: ['email', 'codigo'], default: 'email' },
     saldoFavorVED: { type: Number, default: 0 },
+
+    // 🔹 Campo para soft delete
+    isDeleted: { type: Boolean, default: false }
   },
   { timestamps: true }
 );
