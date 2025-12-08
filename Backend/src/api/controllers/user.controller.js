@@ -3,7 +3,28 @@ import regex from '../../utils/regex.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
-// Crear usuario con validaciones
+/**
+ * Crear un nuevo usuario con validaciones.
+ *
+ * @async
+ * @function createUser
+ * @param {Object} req - Objeto de solicitud de Express.
+ * @param {Object} req.body - Datos del usuario a crear.
+ * @param {string} req.body.cedula - Cédula del usuario (7-8 dígitos numéricos).
+ * @param {string} req.body.email - Correo electrónico único.
+ * @param {string} req.body.password - Contraseña en texto plano (mínimo 8 caracteres, letras y números).
+ * @param {string} req.body.nombre - Nombre del usuario.
+ * @param {string} req.body.apellido - Apellido del usuario.
+ * @param {string} [req.body.telefono] - Teléfono opcional (11 dígitos).
+ * @param {string} req.body.sede - Sede de la dirección.
+ * @param {string} req.body.ciudad - Ciudad de la dirección.
+ * @param {string} req.body.urbanizacion - Urbanización de la dirección.
+ * @param {string} req.body.calle - Calle de la dirección.
+ * @param {string} [req.body.apartamento] - Apartamento opcional.
+ * @param {Object} res - Objeto de respuesta de Express.
+ * @param {Function} next - Función para manejar errores.
+ * @returns {Object} JSON con el usuario creado (sin passwordHash).
+ */
 export async function createUser(req, res, next) {
   try {
     const { cedula, email, password, nombre, apellido, telefono, sede, ciudad, urbanizacion, calle, apartamento } = req.body;
@@ -56,7 +77,19 @@ export async function createUser(req, res, next) {
   }
 }
 
-// Login de usuario con validaciones
+/**
+ * Iniciar sesión de usuario con validaciones.
+ *
+ * @async
+ * @function login
+ * @param {Object} req - Objeto de solicitud de Express.
+ * @param {Object} req.body - Credenciales de login.
+ * @param {string} req.body.email - Correo electrónico del usuario.
+ * @param {string} req.body.password - Contraseña en texto plano.
+ * @param {Object} res - Objeto de respuesta de Express.
+ * @param {Function} next - Función para manejar errores.
+ * @returns {Object} JSON con mensaje de éxito, token JWT y datos del usuario.
+ */
 export async function login(req, res, next) {
   try {
     const { email, password } = req.body;
@@ -88,7 +121,26 @@ export async function login(req, res, next) {
   }
 }
 
-// Actualizar usuario con validaciones
+/**
+ * Actualizar un usuario existente con validaciones.
+ *
+ * @async
+ * @function updateUser
+ * @param {Object} req - Objeto de solicitud de Express.
+ * @param {string} req.params.id - ID del usuario a actualizar.
+ * @param {Object} req.body - Datos a actualizar.
+ * @param {string} [req.body.nombre] - Nombre del usuario.
+ * @param {string} [req.body.apellido] - Apellido del usuario.
+ * @param {string} [req.body.telefono] - Teléfono del usuario (11 dígitos).
+ * @param {string} [req.body.sede] - Sede de la dirección.
+ * @param {string} [req.body.ciudad] - Ciudad de la dirección.
+ * @param {string} [req.body.urbanizacion] - Urbanización de la dirección.
+ * @param {string} [req.body.calle] - Calle de la dirección.
+ * @param {string} [req.body.apartamento] - Apartamento opcional.
+ * @param {Object} res - Objeto de respuesta de Express.
+ * @param {Function} next - Función para manejar errores.
+ * @returns {Object} JSON con el usuario actualizado o error si está eliminado.
+ */
 export async function updateUser(req, res, next) {
   try {
     const { nombre, apellido, telefono, sede, ciudad, urbanizacion, calle, apartamento } = req.body;
@@ -123,7 +175,16 @@ export async function updateUser(req, res, next) {
   }
 }
 
-// Obtener todos los usuarios (solo activos)
+/**
+ * Obtener todos los usuarios activos (no eliminados).
+ *
+ * @async
+ * @function getUsers
+ * @param {Object} req - Objeto de solicitud de Express.
+ * @param {Object} res - Objeto de respuesta de Express.
+ * @param {Function} next - Función para manejar errores.
+ * @returns {Array<Object>} Lista de usuarios activos con sus direcciones.
+ */
 export async function getUsers(req, res, next) {
   try {
     const users = await User.find({ isDeleted: false })
@@ -135,7 +196,17 @@ export async function getUsers(req, res, next) {
   }
 }
 
-// Obtener usuario por ID (solo activo)
+/**
+ * Obtener un usuario por su ID (solo si está activo).
+ *
+ * @async
+ * @function getUserById
+ * @param {Object} req - Objeto de solicitud de Express.
+ * @param {string} req.params.id - ID del usuario.
+ * @param {Object} res - Objeto de respuesta de Express.
+ * @param {Function} next - Función para manejar errores.
+ * @returns {Object} JSON con el usuario encontrado o error si está eliminado.
+ */
 export async function getUserById(req, res, next) {
   try {
     const user = await User.findOne({ _id: req.params.id, isDeleted: false })
@@ -148,7 +219,17 @@ export async function getUserById(req, res, next) {
   }
 }
 
-// Soft delete de usuario
+/**
+ * Eliminar un usuario mediante soft delete.
+ *
+ * @async
+ * @function deleteUser
+ * @param {Object} req - Objeto de solicitud de Express.
+ * @param {string} req.params.id - ID del usuario a eliminar.
+ * @param {Object} res - Objeto de respuesta de Express.
+ * @param {Function} next - Función para manejar errores.
+ * @returns {Object} JSON con confirmación de eliminación y usuario marcado como eliminado.
+ */
 export async function deleteUser(req, res, next) {
   try {
     const user = await User.findByIdAndUpdate(
@@ -164,3 +245,160 @@ export async function deleteUser(req, res, next) {
     next(err);
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
