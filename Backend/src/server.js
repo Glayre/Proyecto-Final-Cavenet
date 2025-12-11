@@ -46,7 +46,8 @@ const server = createServer(app);
  *
  * @example
  * // Ejemplo de salida en consola:
- * // API corriendo en puerto 4000
+ * // 🚀 API corriendo en puerto 4000
+ * // 🌐 http://localhost:4000/
  */
 server.listen(PORT, () => {
   console.log(`🚀 API corriendo en puerto ${PORT}`);
@@ -55,8 +56,22 @@ server.listen(PORT, () => {
 
 /**
  * Inicialización de procesos adicionales:
- * - Creación de usuario administrador por defecto.
+ * - Creación/verificación de usuario administrador por defecto.
  * - Inicio del cron job de facturas para recordatorios y suspensión automática.
  */
-createDefaultAdminUser();
-startInvoiceCron();
+(async () => {
+  try {
+    // 🔹 Crear/verificar admin por defecto
+    await createDefaultAdminUser();
+    console.log("✅ Usuario administrador por defecto verificado/creado");
+
+    // 🔹 Iniciar cron job de facturas
+    startInvoiceCron();
+    console.log("⏰ Cron job de facturas iniciado correctamente");
+  } catch (err) {
+    console.error("❌ Error en inicialización de procesos adicionales:", err.message);
+
+    // Opcional: detener el servidor si falla la inicialización crítica
+    // process.exit(1);
+  }
+})();

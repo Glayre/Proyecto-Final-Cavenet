@@ -1,7 +1,7 @@
 import { Router } from "express";
 import planRoutes from "./plan.route.js";
 import userRoutes from "./user.route.js";
-import invoiceRoutes from "./invoiceroute.js";
+import invoiceRoutes from "./invoice.route.js";
 
 /**
  * Enrutador principal de la API.

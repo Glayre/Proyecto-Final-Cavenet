@@ -11,26 +11,31 @@ import jwt from "jsonwebtoken";
  * @property {string} req.user.rol - Rol del usuario ("admin" o "cliente").
  *
  * @example
- * // Proteger una ruta
+ * // Proteger una ruta (token obligatorio)
  * router.get('/usuarios', authMiddleware(true), getUsers);
+ *
+ * // Permitir acceso opcional (token no obligatorio)
+ * router.get('/public', authMiddleware(false), getPublicData);
  */
 export default function authMiddleware(required = true) {
   return (req, res, next) => {
-    const header = req.headers.authorization || "";
-    const token = header.startsWith("Bearer ") ? header.slice(7) : null;
-
-    if (!token && required) {
-      return res.status(401).json({ code: "UNAUTHORIZED", message: "Token requerido" });
-    }
-
     try {
+      const header = req.headers.authorization || "";
+      const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+
+      if (!token && required) {
+        return res.status(401).json({ code: "UNAUTHORIZED", message: "Token requerido" });
+      }
+
       if (token) {
         const payload = jwt.verify(token, process.env.JWT_SECRET);
         // Usar "_id" para consistencia con Mongoose
         req.user = { _id: payload.sub, rol: payload.rol };
       }
-      next(); // ✅ siempre continuar la cadena
+
+      next(); // ✅ continuar siempre la cadena si no hay error
     } catch (err) {
+      console.error("❌ Error en authMiddleware:", err);
       return res.status(401).json({ code: "INVALID_TOKEN", message: "Token inválido" });
     }
   };
@@ -40,8 +45,8 @@ export default function authMiddleware(required = true) {
  * Middleware para validar si el usuario autenticado es administrador.
  *
  * @function isAdmin
- * @param {Object} req - Objeto de solicitud de Express.
- * @param {Object} res - Objeto de respuesta de Express.
+ * @param {import("express").Request} req - Objeto de solicitud de Express.
+ * @param {import("express").Response} res - Objeto de respuesta de Express.
  * @param {Function} next - Función para pasar al siguiente middleware.
  * @returns {Object|void} Devuelve error 401 si no está autenticado, 403 si no es admin, o continúa la ejecución si lo es.
  *
@@ -53,8 +58,10 @@ export function isAdmin(req, res, next) {
   if (!req.user) {
     return res.status(401).json({ code: "UNAUTHORIZED", message: "Usuario no autenticado" });
   }
+
   if (req.user.rol !== "admin") {
     return res.status(403).json({ code: "FORBIDDEN", message: "Acceso denegado: solo administradores" });
   }
-  next(); // importante para continuar
+
+  next(); // ✅ continuar si es admin
 }

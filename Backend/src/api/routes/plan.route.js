@@ -1,6 +1,6 @@
-import { Router } from 'express';
-import * as controller from '../controllers/plan.controller.js';
-import authMiddleware, { isAdmin } from '../middleware/auth.middleware.js';
+import { Router } from "express";
+import * as controller from "../controllers/plan.controller.js";
+import authMiddleware, { isAdmin } from "../middleware/auth.middleware.js";
 
 /**
  * Enrutador de planes.
@@ -26,7 +26,7 @@ const router = Router();
  * @access Público
  * @returns {Array<Object>} Lista de planes disponibles.
  */
-router.get('/', controller.getPlans);
+router.get("/", controller.getPlans);
 
 /**
  * Obtener un plan específico por ID.
@@ -36,7 +36,7 @@ router.get('/', controller.getPlans);
  * @param {string} req.params.id - ID del plan a consultar.
  * @returns {Object} JSON con los datos del plan encontrado.
  */
-router.get('/:id', controller.getPlanById);
+router.get("/:id", controller.getPlanById);
 
 /**
  * Crear un nuevo plan.
@@ -50,7 +50,29 @@ router.get('/:id', controller.getPlanById);
  * @param {string} req.body.tipo - Tipo de plan ("hogar" o "pyme").
  * @returns {Object} JSON con el plan creado.
  */
-router.post('/', authMiddleware(true), isAdmin, controller.createPlan);
+router.post("/", authMiddleware(true), isAdmin, controller.createPlan);
+
+/**
+ * Contratar un plan (cliente).
+ *
+ * Al contratar un plan, se genera automáticamente una factura pendiente
+ * con fecha de vencimiento a 30 días.
+ *
+ * @route POST /plans/contratar
+ * @access Privado (cliente autenticado, requiere JWT)
+ * @param {Object} req.body - Datos de contratación.
+ * @param {string} req.body.planId - ID del plan a contratar.
+ * @returns {Object} JSON con el plan contratado y la factura generada.
+ *
+ * @example
+ * POST /api/plans/contratar
+ * Headers: Authorization: Bearer <token_cliente>
+ * Body:
+ * {
+ *   "planId": "ID_DEL_PLAN"
+ * }
+ */
+router.post("/contratar", authMiddleware(true), controller.contratarPlan);
 
 /**
  * Actualizar un plan existente por ID (actualización parcial).
@@ -61,7 +83,7 @@ router.post('/', authMiddleware(true), isAdmin, controller.createPlan);
  * @param {Object} req.body - Campos a actualizar (parciales).
  * @returns {Object} JSON con el plan actualizado.
  */
-router.patch('/:id', authMiddleware(true), isAdmin, controller.updatePlan);
+router.patch("/:id", authMiddleware(true), isAdmin, controller.updatePlan);
 
 /**
  * Eliminar un plan existente por ID.
@@ -71,6 +93,6 @@ router.patch('/:id', authMiddleware(true), isAdmin, controller.updatePlan);
  * @param {string} req.params.id - ID del plan a eliminar.
  * @returns {Object} JSON con confirmación de eliminación.
  */
-router.delete('/:id', authMiddleware(true), isAdmin, controller.deletePlan);
+router.delete("/:id", authMiddleware(true), isAdmin, controller.deletePlan);
 
 export default router;

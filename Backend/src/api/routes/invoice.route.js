@@ -7,6 +7,21 @@ import {
 } from "../controllers/invoice.controller.js";
 import authMiddleware, { isAdmin } from "../middleware/auth.middleware.js";
 
+/**
+ * Enrutador de facturas.
+ *
+ * Define las rutas relacionadas con la gestión de facturas en la aplicación.
+ * Incluye operaciones protegidas por middleware de autenticación y control de roles
+ * para garantizar que solo usuarios autorizados puedan realizar cambios.
+ *
+ * @constant
+ * @type {express.Router}
+ *
+ * @example
+ * // Uso en index.js
+ * import invoiceRoutes from './invoice.route.js';
+ * router.use('/invoices', invoiceRoutes);
+ */
 const router = Router();
 
 /**
@@ -47,7 +62,10 @@ router.get("/", authMiddleware(true), isAdmin, getAllInvoices);
 router.get("/:clienteId", authMiddleware(true), getInvoicesByClient);
 
 /**
- * Actualizar estado de una factura (cliente puede pagar, admin puede marcar vencida).
+ * Actualizar estado de una factura.
+ *
+ * El cliente puede marcar como "pagado" su propia factura,
+ * y el administrador puede marcar como "vencida".
  *
  * @route PATCH /api/invoices/:id
  * @access Cliente/Admin (JWT requerido)
@@ -61,4 +79,9 @@ router.get("/:clienteId", authMiddleware(true), getInvoicesByClient);
  */
 router.patch("/:id", authMiddleware(true), updateInvoice);
 
+/**
+ * Exportar el enrutador de facturas.
+ *
+ * @exports router
+ */
 export default router;

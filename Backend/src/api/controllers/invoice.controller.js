@@ -19,7 +19,9 @@ import Plan from "../models/plan.model.js";
  */
 export async function createInvoice(req, res, next) {
   try {
-    // Solo admin puede crear facturas
+    console.log("➡️ Body recibido en createInvoice:", req.body);
+    console.log("➡️ Usuario autenticado:", req.user);
+
     if (req.user.rol !== "admin") {
       return res.status(403).json({ error: "Acceso denegado. Solo administradores pueden crear facturas." });
     }
@@ -44,8 +46,11 @@ export async function createInvoice(req, res, next) {
       fechaVencimiento,
     });
 
+    console.log("✅ Factura creada:", invoice._id);
+
     res.status(201).json(invoice);
   } catch (err) {
+    console.error("❌ Error al crear factura:", err);
     next(err);
   }
 }
@@ -62,19 +67,24 @@ export async function createInvoice(req, res, next) {
  */
 export async function getAllInvoices(req, res, next) {
   try {
+    console.log("➡️ Usuario autenticado:", req.user);
+
     if (req.user.rol !== "admin") {
       return res.status(403).json({ error: "Acceso denegado. Solo administradores pueden ver todas las facturas." });
     }
 
     const invoices = await Invoice.find().populate("planId clienteId");
+    console.log("✅ Facturas encontradas:", invoices.length);
+
     res.json(invoices);
   } catch (err) {
+    console.error("❌ Error en getAllInvoices:", err);
     next(err);
   }
 }
 
 /**
- * Obtener facturas de un cliente (el propio cliente).
+ * Obtener facturas de un cliente (el propio cliente o admin).
  *
  * @async
  * @function getInvoicesByClient
@@ -88,21 +98,25 @@ export async function getAllInvoices(req, res, next) {
 export async function getInvoicesByClient(req, res, next) {
   try {
     const { clienteId } = req.params;
+    console.log("➡️ Usuario autenticado:", req.user);
+    console.log("➡️ Cliente solicitado:", clienteId);
 
-    // Solo el cliente dueño de la factura o el admin puede verlas
     if (req.user.rol !== "admin" && req.user._id.toString() !== clienteId) {
       return res.status(403).json({ error: "Acceso denegado. No puede ver facturas de otros clientes." });
     }
 
     const invoices = await Invoice.find({ clienteId }).populate("planId clienteId");
+    console.log("✅ Facturas encontradas para cliente:", invoices.length);
+
     res.json(invoices);
   } catch (err) {
+    console.error("❌ Error en getInvoicesByClient:", err);
     next(err);
   }
 }
 
 /**
- * Actualizar estado de una factura (ej. marcar como pagada).
+ * Actualizar estado de una factura (ej. marcar como pagada o vencida).
  *
  * @async
  * @function updateInvoice
@@ -121,6 +135,9 @@ export async function updateInvoice(req, res, next) {
     const { id } = req.params;
     const { estado, referenciaPago } = req.body;
 
+    console.log("➡️ Usuario autenticado:", req.user);
+    console.log("➡️ Actualizando factura:", id, "con estado:", estado);
+
     if (!["pendiente", "pagado", "vencido"].includes(estado)) {
       return res.status(400).json({ error: "Estado inválido" });
     }
@@ -128,7 +145,7 @@ export async function updateInvoice(req, res, next) {
     const invoice = await Invoice.findById(id);
     if (!invoice) return res.status(404).json({ error: "Factura no encontrada" });
 
-    // Solo admin puede marcar como vencida, cliente puede marcar como pagada
+    // Validaciones de rol
     if (estado === "vencido" && req.user.rol !== "admin") {
       return res.status(403).json({ error: "Acceso denegado. Solo administradores pueden marcar facturas como vencidas." });
     }
@@ -143,17 +160,20 @@ export async function updateInvoice(req, res, next) {
     if (estado === "pagado") {
       invoice.fechaPago = new Date();
 
-      // Reactivar plan si estaba suspendido
       const plan = await Plan.findById(invoice.planId);
       if (plan && !plan.activo) {
         plan.activo = true;
         await plan.save();
+        console.log("✅ Plan reactivado:", plan._id);
       }
     }
 
     await invoice.save();
+    console.log("✅ Factura actualizada:", invoice._id);
+
     res.json(invoice);
   } catch (err) {
+    console.error("❌ Error en updateInvoice:", err);
     next(err);
   }
 }

@@ -1,36 +1,24 @@
-import Plan from '../models/plan.model.js';
-import regex from '../../utils/regex.js';
+import Plan from "../models/plan.model.js";
+import Invoice from "../models/invoice.model.js";
+import regex from "../../utils/regex.js";
 
 /**
  * Crear un nuevo plan con validaciones.
- *
- * @async
- * @function createPlan
- * @param {Object} req - Objeto de solicitud de Express.
- * @param {Object} req.body - Datos del plan a crear.
- * @param {string} req.body.nombre - Nombre del plan (solo letras, entre 2 y 200 caracteres).
- * @param {number} req.body.velocidadMbps - Velocidad en Mbps (número positivo).
- * @param {number} req.body.precioUSD - Precio en USD (número positivo).
- * @param {string} req.body.tipo - Tipo de plan ("hogar" o "pyme").
- * @param {Object} res - Objeto de respuesta de Express.
- * @param {Function} next - Función para manejar errores.
- * @returns {Object} JSON con el plan creado o error de validación.
  */
 export async function createPlan(req, res, next) {
   try {
     const { nombre, velocidadMbps, precioUSD, tipo } = req.body;
 
-    // 🔹 Validaciones
     if (!regex.text.test(nombre)) {
-      return res.status(400).json({ error: 'Nombre inválido (solo letras, entre 2 y 200 caracteres)' });
+      return res.status(400).json({ error: "Nombre inválido (solo letras, entre 2 y 200 caracteres)" });
     }
-    if (typeof velocidadMbps !== 'number' || velocidadMbps <= 0) {
-      return res.status(400).json({ error: 'Velocidad inválida (debe ser un número positivo)' });
+    if (typeof velocidadMbps !== "number" || velocidadMbps <= 0) {
+      return res.status(400).json({ error: "Velocidad inválida (debe ser un número positivo)" });
     }
-    if (typeof precioUSD !== 'number' || precioUSD <= 0) {
-      return res.status(400).json({ error: 'Precio inválido (debe ser un número positivo)' });
+    if (typeof precioUSD !== "number" || precioUSD <= 0) {
+      return res.status(400).json({ error: "Precio inválido (debe ser un número positivo)" });
     }
-    if (!['hogar', 'pyme'].includes(tipo)) {
+    if (!["hogar", "pyme"].includes(tipo)) {
       return res.status(400).json({ error: 'Tipo inválido (solo se acepta "hogar" o "pyme")' });
     }
 
@@ -42,33 +30,71 @@ export async function createPlan(req, res, next) {
 }
 
 /**
- * Actualizar un plan existente con validaciones.
+ * Contratar un plan (cliente) y generar factura automática.
  *
  * @async
- * @function updatePlan
- * @param {Object} req - Objeto de solicitud de Express.
- * @param {string} req.params.id - ID del plan a actualizar.
- * @param {Object} req.body - Datos a actualizar.
- * @param {Object} res - Objeto de respuesta de Express.
- * @param {Function} next - Función para manejar errores.
- * @returns {Object} JSON con el plan actualizado o error de validación.
+ * @function contratarPlan
+ * @param {import("express").Request} req - Objeto de solicitud HTTP.
+ * @param {Object} req.body - Datos de contratación.
+ * @param {string} req.body.planId - ID del plan a contratar.
+ * @param {import("express").Response} res - Objeto de respuesta HTTP.
+ * @param {Function} next - Middleware para manejo de errores.
+ * @returns {Promise<void>} Devuelve el plan contratado y la factura generada.
+ */
+export async function contratarPlan(req, res, next) {
+  try {
+    const { planId } = req.body;
+    const clienteId = req.user._id; // cliente autenticado
+
+    const plan = await Plan.findById(planId);
+    if (!plan) return res.status(404).json({ error: "Plan no encontrado" });
+
+    // 🔹 Crear factura automática
+    const fechaEmision = new Date();
+    const fechaVencimiento = new Date();
+    fechaVencimiento.setDate(fechaEmision.getDate() + 30);
+
+    const invoice = await Invoice.create({
+      clienteId,
+      planId,
+      mes: fechaEmision.toLocaleString("es-VE", { month: "long", year: "numeric" }).toUpperCase(),
+      montoUSD: plan.precioUSD,
+      fechaEmision,
+      fechaVencimiento,
+      estado: "pendiente"
+    });
+
+    console.log("✅ Factura creada automáticamente:", invoice._id);
+
+    res.status(201).json({
+      message: "Plan contratado y factura generada automáticamente",
+      plan,
+      invoice
+    });
+  } catch (err) {
+    console.error("❌ Error al contratar plan:", err);
+    next(err);
+  }
+}
+
+/**
+ * Actualizar un plan existente con validaciones.
  */
 export async function updatePlan(req, res, next) {
   try {
     const { nombre, velocidadMbps, precioUSD, tipo } = req.body;
 
-    // 🔹 Validaciones condicionales
     if (nombre && !regex.text.test(nombre)) {
-      return res.status(400).json({ error: 'Nombre inválido' });
+      return res.status(400).json({ error: "Nombre inválido" });
     }
-    if (velocidadMbps && (typeof velocidadMbps !== 'number' || velocidadMbps <= 0)) {
-      return res.status(400).json({ error: 'Velocidad inválida' });
+    if (velocidadMbps && (typeof velocidadMbps !== "number" || velocidadMbps <= 0)) {
+      return res.status(400).json({ error: "Velocidad inválida" });
     }
-    if (precioUSD && (typeof precioUSD !== 'number' || precioUSD <= 0)) {
-      return res.status(400).json({ error: 'Precio inválido' });
+    if (precioUSD && (typeof precioUSD !== "number" || precioUSD <= 0)) {
+      return res.status(400).json({ error: "Precio inválido" });
     }
-    if (tipo && !['hogar', 'pyme'].includes(tipo)) {
-      return res.status(400).json({ error: 'Tipo inválido' });
+    if (tipo && !["hogar", "pyme"].includes(tipo)) {
+      return res.status(400).json({ error: "Tipo inválido" });
     }
 
     const plan = await Plan.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -80,13 +106,6 @@ export async function updatePlan(req, res, next) {
 
 /**
  * Obtener todos los planes disponibles.
- *
- * @async
- * @function getPlans
- * @param {Object} req - Objeto de solicitud de Express.
- * @param {Object} res - Objeto de respuesta de Express.
- * @param {Function} next - Función para manejar errores.
- * @returns {Array<Object>} Lista de planes.
  */
 export async function getPlans(req, res, next) {
   try {
@@ -99,19 +118,11 @@ export async function getPlans(req, res, next) {
 
 /**
  * Obtener un plan por su ID.
- *
- * @async
- * @function getPlanById
- * @param {Object} req - Objeto de solicitud de Express.
- * @param {string} req.params.id - ID del plan.
- * @param {Object} res - Objeto de respuesta de Express.
- * @param {Function} next - Función para manejar errores.
- * @returns {Object} JSON con el plan encontrado o error si no existe.
  */
 export async function getPlanById(req, res, next) {
   try {
     const plan = await Plan.findById(req.params.id);
-    if (!plan) return res.status(404).json({ error: 'Plan no encontrado' });
+    if (!plan) return res.status(404).json({ error: "Plan no encontrado" });
     res.json(plan);
   } catch (err) {
     next(err);
@@ -120,14 +131,6 @@ export async function getPlanById(req, res, next) {
 
 /**
  * Eliminar un plan por su ID.
- *
- * @async
- * @function deletePlan
- * @param {Object} req - Objeto de solicitud de Express.
- * @param {string} req.params.id - ID del plan a eliminar.
- * @param {Object} res - Objeto de respuesta de Express.
- * @param {Function} next - Función para manejar errores.
- * @returns {Object} JSON con confirmación de eliminación.
  */
 export async function deletePlan(req, res, next) {
   try {
@@ -137,4 +140,3 @@ export async function deletePlan(req, res, next) {
     next(err);
   }
 }
-
