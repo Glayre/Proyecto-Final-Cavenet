@@ -84,6 +84,6 @@ router.patch('/:id', authMiddleware(true), updateUser);
  * @param {string} req.params.id - ID del usuario a eliminar.
  * @returns {Object} JSON con confirmación de eliminación.
  */
-router.delete('/:id', authMiddleware(true), deleteUser);
+router.delete('/:id', authMiddleware(true), isAdmin, deleteUser);
 
 export default router;

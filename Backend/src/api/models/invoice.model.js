@@ -1,10 +1,31 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
+
+const TASA_URL = "https://bcv-api.rafnixg.dev/rates/";
+
+/**
+ * Consulta la tasa del BCV desde la API externa.
+ *
+ * @async
+ * @function consultarTasa
+ * @returns {Promise<number|null>} Devuelve la tasa en VED o null si ocurre un error.
+ */
+const consultarTasa = async () => {
+  try {
+    const response = await fetch(TASA_URL);
+    const data = await response.json();
+    return data.dollar;
+  } catch (error) {
+    console.error("Error al consultar la tasa de cambio:", error);
+    return null;
+  }
+};
 
 /**
  * Esquema de facturas (Invoice).
  *
  * Representa las facturas generadas para los clientes en relación con los planes contratados.
- * Incluye información sobre el cliente, el plan, el monto, la tasa de cambio y el estado de pago.
+ * Incluye información sobre el cliente, el plan, el monto, la tasa de cambio,
+ * el estado de pago, fechas de emisión, vencimiento y pago, así como recordatorios.
  *
  * @typedef {Object} Invoice
  * @property {mongoose.ObjectId} clienteId - Referencia al usuario (cliente) asociado a la factura.
@@ -12,41 +33,46 @@ import mongoose from 'mongoose';
  * @property {string} mes - Mes de facturación (ejemplo: "NOVIEMBRE 2025").
  * @property {number} montoUSD - Monto de la factura en dólares estadounidenses.
  * @property {number} tasaVED - Tasa de cambio aplicada en VED (ejemplo: 233.56).
- * @property {string} estado - Estado de la factura, puede ser "pendiente" o "pagado".
+ * @property {string} estado - Estado de la factura, puede ser "pendiente", "pagado" o "vencido".
  * @property {Date} fechaEmision - Fecha de emisión de la factura (por defecto la fecha actual).
+ * @property {Date} fechaVencimiento - Fecha límite para el pago de la factura.
  * @property {Date} [fechaPago] - Fecha en la que se registró el pago (opcional).
  * @property {string} [referenciaPago] - Referencia del pago (últimos 6 dígitos, opcional).
+ * @property {boolean} recordatorioEnviado - Indica si ya se envió un recordatorio de vencimiento.
  * @property {Date} createdAt - Fecha de creación del documento (generada automáticamente por Mongoose).
  * @property {Date} updatedAt - Fecha de última actualización del documento (generada automáticamente por Mongoose).
  */
 const InvoiceSchema = new mongoose.Schema(
   {
-    clienteId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    planId: { type: mongoose.Schema.Types.ObjectId, ref: 'Plan', required: true },
+    clienteId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    planId: { type: mongoose.Schema.Types.ObjectId, ref: "Plan", required: true },
     mes: { type: String, required: true }, // Ejemplo: 'NOVIEMBRE 2025'
     montoUSD: { type: Number, required: true },
-    tasaVED: { type: Number, required: true }, // Ejemplo: 233.56
-    estado: { type: String, enum: ['pendiente', 'pagado'], default: 'pendiente' },
+    // 🔹 Valor seguro por defecto, se actualizará en el hook
+    tasaVED: { type: Number, required: true, default: 200 },
+    estado: { type: String, enum: ["pendiente", "pagado", "vencido"], default: "pendiente" },
     fechaEmision: { type: Date, default: Date.now },
+    fechaVencimiento: { type: Date, required: true }, // fecha límite 
     fechaPago: { type: Date },
     referenciaPago: { type: String }, // Últimos 6 dígitos de la referencia de pago
+    recordatorioEnviado: { type: Boolean, default: false } // Indica si se envió recordatorio
   },
   { timestamps: true }
 );
 
 /**
- * Modelo de facturas.
+ * Hook: antes de guardar, consulta la tasa si no está definida.
  *
- * @constant
- * @type {mongoose.Model<Invoice>}
- * @example
- * // Crear una nueva factura
- * const factura = await Invoice.create({
- *   clienteId: user._id,
- *   planId: plan._id,
- *   mes: 'NOVIEMBRE 2025',
- *   montoUSD: 50,
- *   tasaVED: 233.56
- * });
+ * @async
+ * @function preSave
+ * @param {Function} next - Función para continuar con el flujo de guardado.
  */
-export default mongoose.model('Invoice', InvoiceSchema);
+InvoiceSchema.pre("save", async function (next) {
+  if (!this.tasaVED || this.tasaVED === 200) {
+    const tasa = await consultarTasa();
+    if (tasa) this.tasaVED = tasa;
+  }
+  next();
+});
+
+export default mongoose.model("Invoice", InvoiceSchema);

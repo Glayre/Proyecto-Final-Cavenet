@@ -1,6 +1,8 @@
-import { createServer } from 'http';
-import app from './app.js';
-import { loadEnv } from './config/env.js';
+import { createServer } from "http";
+import app from "./app.js";
+import { loadEnv } from "./config/env.js";
+import createDefaultAdminUser from "./utils/CreateDefaultAdminUser.js";
+import { startInvoiceCron } from "./jobs/invoices.cron.js";
 
 /**
  * Carga las variables de entorno desde el archivo `.env` o desde el sistema.
@@ -28,9 +30,9 @@ const PORT = process.env.PORT || 4000;
  * Se crea a partir de la aplicación Express definida en `app.js`.
  *
  * @constant
- * @type {import('http').Server}
+ * @type {import("http").Server}
  *
- * @param {import('express').Express} app - Instancia de la aplicación Express que maneja las rutas y middlewares.
+ * @param {import("express").Express} app - Instancia de la aplicación Express que maneja las rutas y middlewares.
  */
 const server = createServer(app);
 
@@ -47,5 +49,14 @@ const server = createServer(app);
  * // API corriendo en puerto 4000
  */
 server.listen(PORT, () => {
-  console.log(`API corriendo en puerto ${PORT}`);
+  console.log(`🚀 API corriendo en puerto ${PORT}`);
+  console.log(`🌐 http://localhost:${PORT}/`);
 });
+
+/**
+ * Inicialización de procesos adicionales:
+ * - Creación de usuario administrador por defecto.
+ * - Inicio del cron job de facturas para recordatorios y suspensión automática.
+ */
+createDefaultAdminUser();
+startInvoiceCron();

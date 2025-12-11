@@ -32,7 +32,7 @@ import express from 'express';
  */
 export default function loadExpress(app) {
   app.use(helmet());
-  app.use(cors({ origin: true, credentials: true }));
+  app.use(cors({ origin: "*"}));
   app.use(morgan('dev'));
   app.use(compression());
   app.use(express.json({ limit: '1mb' }));

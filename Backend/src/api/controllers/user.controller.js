@@ -93,9 +93,10 @@ export async function createUser(req, res, next) {
 export async function login(req, res, next) {
   try {
     const { email, password } = req.body;
-
+    console.log(req.body);
     if (!regex.email.test(email)) return res.status(400).json({ error: 'Correo inválido' });
     if (!regex.password.test(password)) return res.status(400).json({ error: 'Contraseña inválida' });
+
 
     const user = await User.findOne({ email, isDeleted: false }).populate('direccion');
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -144,6 +145,15 @@ export async function login(req, res, next) {
 export async function updateUser(req, res, next) {
   try {
     const { nombre, apellido, telefono, sede, ciudad, urbanizacion, calle, apartamento } = req.body;
+
+    const user_id = req.user.id;
+    const search_id = req.params.id;
+
+    // Permitir acceso solo si el usuario es admin o está accediendo a su propio perfil
+    if (req.user.rol !== 'admin' && user_id !== search_id) {
+      return res.status(403).json({ code: 'FORBIDDEN', message: 'Acceso denegado' });
+    }
+    
 
     if (nombre && !regex.text.test(nombre)) return res.status(400).json({ error: 'Nombre inválido' });
     if (apellido && !regex.text.test(apellido)) return res.status(400).json({ error: 'Apellido inválido' });
@@ -209,6 +219,14 @@ export async function getUsers(req, res, next) {
  */
 export async function getUserById(req, res, next) {
   try {
+    const user_id = req.user.id;
+    const search_id = req.params.id;
+
+    // Permitir acceso solo si el usuario es admin o está accediendo a su propio perfil
+    if (req.user.rol !== 'admin' && user_id !== search_id) {
+      return res.status(403).json({ code: 'FORBIDDEN', message: 'Acceso denegado' });
+    }
+
     const user = await User.findOne({ _id: req.params.id, isDeleted: false })
       .populate('direccion')
       .select('-passwordHash');
@@ -245,7 +263,6 @@ export async function deleteUser(req, res, next) {
     next(err);
   }
 }
-
 
 
 

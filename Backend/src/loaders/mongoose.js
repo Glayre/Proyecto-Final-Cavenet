@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { loadEnv } from '../config/env.js';
+import { seedPlans } from '../loaders/seedplans.js'; 
 
 loadEnv();
 
@@ -27,7 +28,7 @@ mongoose.set('strictQuery', true);
  *
  * Utiliza la librería `mongoose` para establecer la conexión con la base de datos.
  * - `autoIndex: true` asegura que los índices definidos en los esquemas se creen automáticamente.
- * - En caso de éxito, se muestra un mensaje en consola.
+ * - En caso de éxito, se ejecutan los seeds de Admin y Planes.
  * - En caso de error, se imprime el error y se detiene el proceso con `process.exit(1)`.
  *
  * @function connectMongoDB
@@ -35,11 +36,16 @@ mongoose.set('strictQuery', true);
  *
  * @example
  * // Uso en app.js o server.js
- * import './config/mongoose.js';
+ * import './loaders/mongoose.js';
  */
 mongoose
   .connect(uri, { autoIndex: true })
-  .then(() => console.log('MongoDB conectado'))
+  .then(async () => {
+    console.log('MongoDB conectado');
+
+    // 🔹 Ejecutar seeds
+    await seedPlans();
+  })
   .catch((err) => {
     console.error('Error conectando a MongoDB', err);
     process.exit(1);
