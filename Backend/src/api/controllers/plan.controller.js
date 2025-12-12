@@ -4,6 +4,18 @@ import regex from "../../utils/regex.js";
 
 /**
  * Crear un nuevo plan con validaciones.
+ *
+ * @async
+ * @function createPlan
+ * @param {import("express").Request} req - Objeto de solicitud HTTP.
+ * @param {Object} req.body - Datos del plan a crear.
+ * @param {string} req.body.nombre - Nombre del plan.
+ * @param {number} req.body.velocidadMbps - Velocidad en Mbps.
+ * @param {number} req.body.precioUSD - Precio en dólares.
+ * @param {string} req.body.tipo - Tipo de plan ("hogar" o "pyme").
+ * @param {import("express").Response} res - Objeto de respuesta HTTP.
+ * @param {Function} next - Middleware para manejo de errores.
+ * @returns {Promise<void>} Devuelve el plan creado en formato JSON.
  */
 export async function createPlan(req, res, next) {
   try {
@@ -79,6 +91,13 @@ export async function contratarPlan(req, res, next) {
 
 /**
  * Actualizar un plan existente con validaciones.
+ *
+ * @async
+ * @function updatePlan
+ * @param {import("express").Request} req - Objeto de solicitud HTTP.
+ * @param {string} req.params.id - ID del plan a actualizar.
+ * @param {Object} req.body - Campos a actualizar.
+ * @returns {Promise<void>} Devuelve el plan actualizado.
  */
 export async function updatePlan(req, res, next) {
   try {
@@ -106,6 +125,10 @@ export async function updatePlan(req, res, next) {
 
 /**
  * Obtener todos los planes disponibles.
+ *
+ * @async
+ * @function getPlans
+ * @returns {Promise<void>} Devuelve un array de planes en formato JSON.
  */
 export async function getPlans(req, res, next) {
   try {
@@ -118,6 +141,11 @@ export async function getPlans(req, res, next) {
 
 /**
  * Obtener un plan por su ID.
+ *
+ * @async
+ * @function getPlanById
+ * @param {string} req.params.id - ID del plan.
+ * @returns {Promise<void>} Devuelve el plan encontrado.
  */
 export async function getPlanById(req, res, next) {
   try {
@@ -131,6 +159,11 @@ export async function getPlanById(req, res, next) {
 
 /**
  * Eliminar un plan por su ID.
+ *
+ * @async
+ * @function deletePlan
+ * @param {string} req.params.id - ID del plan.
+ * @returns {Promise<void>} Devuelve confirmación de eliminación.
  */
 export async function deletePlan(req, res, next) {
   try {
