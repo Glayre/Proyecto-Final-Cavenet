@@ -12,7 +12,7 @@ import express from 'express';
  *
  * Middlewares aplicados:
  * - helmet: Añade cabeceras de seguridad HTTP.
- * - cors: Habilita CORS con soporte para credenciales y origen dinámico.
+ * - cors: Habilita CORS para permitir peticiones desde el frontend en http://localhost:3000.
  * - morgan: Registra las solicitudes HTTP en consola (modo "dev").
  * - compression: Comprime las respuestas para optimizar el rendimiento.
  * - express.json: Permite recibir cuerpos de petición en formato JSON (límite de 1 MB).
@@ -25,16 +25,31 @@ import express from 'express';
  * @example
  * // Uso en app.js
  * import express from 'express';
- * import loadExpress from './config/express.js';
+ * import loadExpress from './loaders/express.js';
  *
  * const app = express();
  * loadExpress(app);
  */
 export default function loadExpress(app) {
+  // 🔹 Seguridad básica: cabeceras HTTP seguras
   app.use(helmet());
-  app.use(cors({ origin: "*"}));
+
+  // 🔹 CORS: habilita peticiones desde el frontend en http://localhost:3000
+  // "credentials: true" permite enviar cookies o headers de autenticación
+  app.use(cors({
+    origin: "http://localhost:3000",
+    credentials: true
+  }));
+
+  // 🔹 Logs de peticiones HTTP (modo desarrollo)
   app.use(morgan('dev'));
+
+  // 🔹 Compresión de respuestas para mejorar rendimiento
   app.use(compression());
+
+  // 🔹 Parseo de JSON en el body de las peticiones
   app.use(express.json({ limit: '1mb' }));
+
+  // 🔹 Parseo de datos de formularios (application/x-www-form-urlencoded)
   app.use(express.urlencoded({ extended: true }));
 }
