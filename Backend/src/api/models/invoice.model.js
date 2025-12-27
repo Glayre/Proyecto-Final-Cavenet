@@ -67,12 +67,12 @@ const InvoiceSchema = new mongoose.Schema(
  * @function preSave
  * @param {Function} next - Función para continuar con el flujo de guardado.
  */
-InvoiceSchema.pre("save", async function (next) {
+InvoiceSchema.pre("save", async function () {
   if (!this.tasaVED || this.tasaVED === 200) {
     const tasa = await consultarTasa();
     if (tasa) this.tasaVED = tasa;
   }
-  next();
+  
 });
 
 export default mongoose.model("Invoice", InvoiceSchema);

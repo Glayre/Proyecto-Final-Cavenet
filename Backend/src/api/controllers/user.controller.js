@@ -105,10 +105,11 @@ export async function login(req, res, next) {
     if (!validPassword) return res.status(401).json({ error: 'Credenciales inválidas' });
 
     // Generar token JWT
-    const token = jwt.sign(
-      { sub: user._id, rol: user.rol },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+
+  const token = jwt.sign(
+    { sub: user._id, rol: user.rol },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES }   // 👈 ahora usa la variable de .env
     );
 
     // 🔹 Ocultar passwordHash en la respuesta
@@ -146,7 +147,7 @@ export async function updateUser(req, res, next) {
   try {
     const { nombre, apellido, telefono, sede, ciudad, urbanizacion, calle, apartamento } = req.body;
 
-    const user_id = req.user.id;
+    const user_id = req.user._id.toString();
     const search_id = req.params.id;
 
     // Permitir acceso solo si el usuario es admin o está accediendo a su propio perfil
