@@ -39,6 +39,8 @@ const consultarTasa = async () => {
  * @property {Date} [fechaPago] - Fecha en la que se registró el pago (opcional).
  * @property {string} [referenciaPago] - Referencia del pago (últimos 6 dígitos, opcional).
  * @property {boolean} recordatorioEnviado - Indica si ya se envió un recordatorio de vencimiento.
+ * @property {string} [detalle] - Texto descriptivo del plan y mes (ejemplo: "PLAN BÁSICO 150 MBPS NOVIEMBRE 2025").
+ * @property {string} [moneda] - Monto formateado con la moneda (ejemplo: "USD $ 35,00").
  * @property {Date} createdAt - Fecha de creación del documento (generada automáticamente por Mongoose).
  * @property {Date} updatedAt - Fecha de última actualización del documento (generada automáticamente por Mongoose).
  */
@@ -48,14 +50,17 @@ const InvoiceSchema = new mongoose.Schema(
     planId: { type: mongoose.Schema.Types.ObjectId, ref: "Plan", required: true },
     mes: { type: String, required: true }, // Ejemplo: 'NOVIEMBRE 2025'
     montoUSD: { type: Number, required: true },
-    // 🔹 Valor seguro por defecto, se actualizará en el hook
-    tasaVED: { type: Number, required: true, default: 200 },
+    tasaVED: { type: Number, required: true, default: 200 }, // Se actualiza con el hook
     estado: { type: String, enum: ["pendiente", "pagado", "vencido"], default: "pendiente" },
     fechaEmision: { type: Date, default: Date.now },
-    fechaVencimiento: { type: Date, required: true }, // fecha límite 
+    fechaVencimiento: { type: Date, required: true },
     fechaPago: { type: Date },
-    referenciaPago: { type: String }, // Últimos 6 dígitos de la referencia de pago
-    recordatorioEnviado: { type: Boolean, default: false } // Indica si se envió recordatorio
+    referenciaPago: { type: String },
+    recordatorioEnviado: { type: Boolean, default: false },
+
+    // 🔹 NUEVOS CAMPOS para mostrar detalle en el frontend
+    detalle: { type: String }, // Texto descriptivo del plan/mes
+    moneda: { type: String }   // Ejemplo: "USD $ 35,00"
   },
   { timestamps: true }
 );
@@ -72,7 +77,6 @@ InvoiceSchema.pre("save", async function () {
     const tasa = await consultarTasa();
     if (tasa) this.tasaVED = tasa;
   }
-  
 });
 
 export default mongoose.model("Invoice", InvoiceSchema);

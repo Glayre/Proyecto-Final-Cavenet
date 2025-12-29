@@ -3,19 +3,6 @@ import Plan from "../models/plan.model.js";
 
 /**
  * Crear una nueva factura (solo administrador).
- *
- * @async
- * @function createInvoice
- * @param {import("express").Request} req - Objeto de solicitud HTTP.
- * @param {Object} req.body - Datos de la factura.
- * @param {string} req.body.clienteId - ID del cliente asociado.
- * @param {string} req.body.planId - ID del plan contratado.
- * @param {string} req.body.mes - Mes de facturación (ejemplo: "DICIEMBRE 2025").
- * @param {number} req.body.montoUSD - Monto de la factura en dólares.
- * @param {string} [req.body.referenciaPago] - Referencia opcional del pago.
- * @param {import("express").Response} res - Objeto de respuesta HTTP.
- * @param {Function} next - Middleware para manejo de errores.
- * @returns {Promise<void>} Devuelve la factura creada en formato JSON.
  */
 export async function createInvoice(req, res, next) {
   try {
@@ -32,6 +19,15 @@ export async function createInvoice(req, res, next) {
       return res.status(400).json({ error: "Debe especificar clienteId, planId, mes y montoUSD" });
     }
 
+    // 🔹 Buscar el plan para construir detalle y moneda
+    const plan = await Plan.findById(planId);
+    if (!plan) {
+      return res.status(404).json({ error: "Plan no encontrado" });
+    }
+
+    const detalle = `${plan.nombre.toUpperCase()} ${mes}`;
+    const moneda = `USD $ ${montoUSD.toFixed(2)}`;
+
     const fechaEmision = new Date();
     const fechaVencimiento = new Date();
     fechaVencimiento.setDate(fechaEmision.getDate() + 30);
@@ -44,11 +40,23 @@ export async function createInvoice(req, res, next) {
       referenciaPago,
       fechaEmision,
       fechaVencimiento,
+      detalle,
+      moneda
     });
 
     console.log("✅ Factura creada:", invoice._id);
 
-    res.status(201).json(invoice);
+    // 🔹 Respuesta formateada para el frontend
+    res.status(201).json({
+      id: invoice._id,
+      fecha: fechaEmision.toLocaleDateString("es-VE"),
+      montoUSD: invoice.montoUSD,
+      tasaVED: invoice.tasaVED,
+      montoBs: (invoice.montoUSD * invoice.tasaVED).toFixed(2),
+      estado: invoice.estado === "pagado" ? "Pagada" : invoice.estado === "pendiente" ? "Pendiente" : "Vencida",
+      detalle: invoice.detalle,
+      moneda: invoice.moneda
+    });
   } catch (err) {
     console.error("❌ Error al crear factura:", err);
     next(err);
@@ -57,13 +65,6 @@ export async function createInvoice(req, res, next) {
 
 /**
  * Obtener todas las facturas (solo administrador).
- *
- * @async
- * @function getAllInvoices
- * @param {import("express").Request} req - Objeto de solicitud HTTP.
- * @param {import("express").Response} res - Objeto de respuesta HTTP.
- * @param {Function} next - Middleware para manejo de errores.
- * @returns {Promise<void>} Devuelve un array de facturas en formato JSON.
  */
 export async function getAllInvoices(req, res, next) {
   try {
@@ -76,7 +77,19 @@ export async function getAllInvoices(req, res, next) {
     const invoices = await Invoice.find().populate("planId clienteId");
     console.log("✅ Facturas encontradas:", invoices.length);
 
-    res.json(invoices);
+    // 🔹 Transformar facturas para frontend
+    const formatted = invoices.map(inv => ({
+      id: inv._id,
+      fecha: inv.fechaEmision ? inv.fechaEmision.toLocaleDateString("es-VE") : "",
+      montoUSD: inv.montoUSD,
+      tasaVED: inv.tasaVED,
+      montoBs: (inv.montoUSD * inv.tasaVED).toFixed(2),
+      estado: inv.estado === "pagado" ? "Pagada" : inv.estado === "pendiente" ? "Pendiente" : "Vencida",
+      detalle: inv.detalle,
+      moneda: inv.moneda
+    }));
+
+    res.json(formatted);
   } catch (err) {
     console.error("❌ Error en getAllInvoices:", err);
     next(err);
@@ -85,15 +98,6 @@ export async function getAllInvoices(req, res, next) {
 
 /**
  * Obtener facturas de un cliente (el propio cliente o admin).
- *
- * @async
- * @function getInvoicesByClient
- * @param {import("express").Request} req - Objeto de solicitud HTTP.
- * @param {Object} req.params - Parámetros de la ruta.
- * @param {string} req.params.clienteId - ID del cliente.
- * @param {import("express").Response} res - Objeto de respuesta HTTP.
- * @param {Function} next - Middleware para manejo de errores.
- * @returns {Promise<void>} Devuelve un array de facturas en formato JSON.
  */
 export async function getInvoicesByClient(req, res, next) {
   try {
@@ -108,7 +112,19 @@ export async function getInvoicesByClient(req, res, next) {
     const invoices = await Invoice.find({ clienteId }).populate("planId clienteId");
     console.log("✅ Facturas encontradas para cliente:", invoices.length);
 
-    res.json(invoices);
+    // 🔹 Transformar facturas para frontend
+    const formatted = invoices.map(inv => ({
+      id: inv._id,
+      fecha: inv.fechaEmision ? inv.fechaEmision.toLocaleDateString("es-VE") : "",
+      montoUSD: inv.montoUSD,
+      tasaVED: inv.tasaVED,
+      montoBs: (inv.montoUSD * inv.tasaVED).toFixed(2),
+      estado: inv.estado === "pagado" ? "Pagada" : inv.estado === "pendiente" ? "Pendiente" : "Vencida",
+      detalle: inv.detalle,
+      moneda: inv.moneda
+    }));
+
+    res.json(formatted);
   } catch (err) {
     console.error("❌ Error en getInvoicesByClient:", err);
     next(err);
@@ -117,18 +133,6 @@ export async function getInvoicesByClient(req, res, next) {
 
 /**
  * Actualizar estado de una factura (ej. marcar como pagada o vencida).
- *
- * @async
- * @function updateInvoice
- * @param {import("express").Request} req - Objeto de solicitud HTTP.
- * @param {Object} req.params - Parámetros de la ruta.
- * @param {string} req.params.id - ID de la factura.
- * @param {Object} req.body - Datos de actualización.
- * @param {string} req.body.estado - Nuevo estado ("pendiente", "pagado", "vencido").
- * @param {string} [req.body.referenciaPago] - Referencia del pago.
- * @param {import("express").Response} res - Objeto de respuesta HTTP.
- * @param {Function} next - Middleware para manejo de errores.
- * @returns {Promise<void>} Devuelve la factura actualizada.
  */
 export async function updateInvoice(req, res, next) {
   try {
@@ -171,7 +175,16 @@ export async function updateInvoice(req, res, next) {
     await invoice.save();
     console.log("✅ Factura actualizada:", invoice._id);
 
-    res.json(invoice);
+    res.json({
+      id: invoice._id,
+      fecha: invoice.fechaEmision ? invoice.fechaEmision.toLocaleDateString("es-VE") : "",
+      montoUSD: invoice.montoUSD,
+      tasaVED: invoice.tasaVED,
+      montoBs: (invoice.montoUSD * invoice.tasaVED).toFixed(2),
+      estado: invoice.estado === "pagado" ? "Pagada" : invoice.estado === "pendiente" ? "Pendiente" : "Vencida",
+      detalle: invoice.detalle,
+      moneda: invoice.moneda
+    });
   } catch (err) {
     console.error("❌ Error en updateInvoice:", err);
     next(err);

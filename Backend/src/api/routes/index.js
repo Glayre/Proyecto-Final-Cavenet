@@ -2,6 +2,7 @@ import { Router } from "express";
 import planRoutes from "./plan.route.js";
 import userRoutes from "./user.route.js";
 import invoiceRoutes from "./invoice.route.js";
+import contratoRoutes from "./contrato.js"; 
 
 /**
  * Enrutador principal de la API.
@@ -60,5 +61,15 @@ router.use("/users", userRoutes);
  * PATCH /api/invoices/:id   // Actualizar estado de factura (pago/vencida)
  */
 router.use("/invoices", invoiceRoutes);
+
+/** * Rutas de contratos. 
+ * 
+ * Todas las rutas relacionadas con la gestión de contratos estarán disponibles 
+ * bajo el prefijo `/contrato`. 
+ * @example 
+ * POST /api/contrato // Crear contrato 
+ * GET /api/contrato // Listar contratos 
+ */ 
+    router.use("/contrato", contratoRoutes);
 
 export default router;
