@@ -2,6 +2,7 @@ import { User, Address } from '../models/user.model.js';
 import regex from '../../utils/regex.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
 
 /**
  * Crear un nuevo usuario con validaciones.
@@ -105,19 +106,33 @@ export async function login(req, res, next) {
     if (!validPassword) return res.status(401).json({ error: 'Credenciales inválidas' });
 
     // Generar token JWT
-
-  const token = jwt.sign(
-    { sub: user._id, rol: user.rol },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES }   // 👈 ahora usa la variable de .env
+    const token = jwt.sign(
+      { sub: user._id, rol: user.rol },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES || '1d' }
     );
 
     // 🔹 Ocultar passwordHash en la respuesta
     const userSafe = await User.findById(user._id)
-      .populate('direccion')
-      .select('-passwordHash');
+      .populate('direccion');
 
-    res.json({ message: 'Login exitoso', token, user: userSafe });
+    const userinfo = {
+      _id: userSafe._id,
+      cedula: userSafe.cedula,
+      email: userSafe.email,
+      nombre: userSafe.nombre,
+      apellido: userSafe.apellido,
+      telefono: userSafe.telefono,
+      rol: userSafe.rol,
+      direccion: {
+        sede: userSafe.direccion.sede,
+        ciudad: userSafe.direccion.ciudad,
+        urbanizacion: userSafe.direccion.urbanizacion,
+        calle: userSafe.direccion.calle,
+      },
+    };
+
+    res.json({ message: 'Login exitoso', token, user: userinfo });
   } catch (err) {
     next(err);
   }
@@ -147,7 +162,7 @@ export async function updateUser(req, res, next) {
   try {
     const { nombre, apellido, telefono, sede, ciudad, urbanizacion, calle, apartamento } = req.body;
 
-    const user_id = req.user._id.toString();
+    const user_id = req.user.id;
     const search_id = req.params.id;
 
     // Permitir acceso solo si el usuario es admin o está accediendo a su propio perfil
