@@ -5,84 +5,91 @@ import {
   updateUser,
   getUsers,
   getUserById,
-  deleteUser
+  deleteUser,
+  recoverPassword, // 👈 Controlador para recuperación de contraseña
+  resetPassword    // 👈 Nuevo controlador para restablecer contraseña
 } from '../controllers/user.controller.js';
-import authMiddleware, { isAdmin } from '../middleware/auth.middleware.js'; // Importa también isAdmin
+import authMiddleware, { isAdmin } from '../middleware/auth.middleware.js';
 
 /**
- * Enrutador de usuarios.
+ * User Routes Module
  *
- * Define las rutas relacionadas con la gestión de usuarios en la aplicación.
- * Incluye operaciones de registro, login, obtención, actualización y eliminación
- * con niveles de acceso diferenciados (público, autenticado y administrador).
+ * Este módulo define todas las rutas relacionadas con la gestión de usuarios
+ * dentro de la aplicación. Incluye operaciones de registro, autenticación,
+ * recuperación de contraseña, restablecimiento de contraseña, obtención,
+ * actualización y eliminación de usuarios.
  *
- * @constant
- * @type {express.Router}
- *
- * @example
- * // Uso en index.js
- * import userRoutes from './user.route.js';
- * router.use('/users', userRoutes);
+ * @module routes/user
+ * @requires express
+ * @requires controllers/user.controller
+ * @requires middleware/auth.middleware
  */
+
 const router = Router();
 
 /**
- * Registro de usuario.
- *
  * @route POST /users/register
- * @access Público (no requiere token)
- * @param {Object} req.body - Datos del usuario a registrar.
- * @returns {Object} JSON con el usuario creado.
+ * @group Users - Operaciones relacionadas con usuarios
+ * @summary Registro de un nuevo usuario
+ * @access Público
  */
 router.post('/register', createUser);
 
 /**
- * Login de usuario.
- *
  * @route POST /users/login
- * @access Público (no requiere token)
- * @param {Object} req.body - Credenciales de acceso (email y contraseña).
- * @returns {Object} JSON con token JWT y datos del usuario.
+ * @group Users
+ * @summary Autenticación de usuario
+ * @access Público
  */
 router.post('/login', login);
 
 /**
- * Obtener todos los usuarios.
- *
+ * @route POST /users/recover
+ * @group Users
+ * @summary Recuperación de contraseña
+ * @access Público
+ * @description Envía un correo de recuperación al usuario con instrucciones
+ */
+router.post('/recover', recoverPassword);
+
+/**
+ * @route POST /users/reset-password
+ * @group Users
+ * @summary Restablecer contraseña
+ * @access Público
+ * @description Permite al usuario establecer una nueva contraseña usando un token de recuperación
+ */
+router.post('/reset-password', resetPassword);
+
+/**
  * @route GET /users
+ * @group Users
+ * @summary Obtener todos los usuarios activos
  * @access Privado (requiere autenticación y rol administrador)
- * @returns {Array<Object>} Lista de usuarios activos.
  */
 router.get('/', authMiddleware(true), isAdmin, getUsers);
 
 /**
- * Obtener usuario por ID.
- *
  * @route GET /users/:id
+ * @group Users
+ * @summary Obtener un usuario por ID
  * @access Privado (requiere autenticación)
- * @param {string} req.params.id - ID del usuario.
- * @returns {Object} JSON con el usuario encontrado.
  */
 router.get('/:id', authMiddleware(true), getUserById);
 
 /**
- * Actualizar usuario (actualización parcial).
- *
  * @route PATCH /users/:id
+ * @group Users
+ * @summary Actualizar parcialmente un usuario
  * @access Privado (requiere autenticación)
- * @param {string} req.params.id - ID del usuario a actualizar.
- * @param {Object} req.body - Campos a actualizar (parciales).
- * @returns {Object} JSON con el usuario actualizado.
  */
 router.patch('/:id', authMiddleware(true), updateUser);
 
 /**
- * Eliminar usuario (soft delete).
- *
  * @route DELETE /users/:id
- * @access Privado (requiere autenticación)
- * @param {string} req.params.id - ID del usuario a eliminar.
- * @returns {Object} JSON con confirmación de eliminación.
+ * @group Users
+ * @summary Eliminar un usuario (soft delete)
+ * @access Privado (requiere autenticación y rol administrador)
  */
 router.delete('/:id', authMiddleware(true), isAdmin, deleteUser);
 

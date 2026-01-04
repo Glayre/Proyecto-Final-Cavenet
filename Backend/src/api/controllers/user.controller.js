@@ -2,7 +2,12 @@ import { User, Address } from '../models/user.model.js';
 import regex from '../../utils/regex.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+
+dotenv.config();
+
+
 
 /**
  * Crear un nuevo usuario con validaciones.
@@ -284,7 +289,112 @@ export async function deleteUser(req, res, next) {
 
 
 
+/**
+ * Recuperar contraseña de usuario.
+ *
+ * Genera un token temporal y envía un correo con enlace de recuperación.
+ *
+ * @async
+ * @function recoverPassword
+ * @param {Object} req - Objeto de solicitud de Express.
+ * @param {Object} req.body - Datos de recuperación.
+ * @param {string} req.body.email - Correo electrónico del usuario.
+ * @param {Object} res - Objeto de respuesta de Express.
+ * @param {Function} next - Función para manejar errores.
+ * @returns {Object} JSON con confirmación de envío de correo o error.
+ */
+export async function recoverPassword(req, res, next) {
+  try {
+    const { email } = req.body;
 
+    // Validar correo
+    if (!email || !regex.email.test(email)) {
+      return res.status(400).json({ error: 'Correo electrónico inválido' });
+    }
+
+    // Buscar usuario activo
+    const user = await User.findOne({ email, isDeleted: false });
+    if (!user) {
+        console.log(`Solicitud de recuperación recibida para correo inexistente: ${email}`); 
+        return res.json({ message: 'Si el correo existe, se enviará un enlace de recuperación' }); }
+
+
+    // Generar token temporal (15 minutos)
+    const recoveryToken = jwt.sign(
+      { sub: user._id, type: 'password_recovery' },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' }
+    );
+
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${recoveryToken}`;
+
+    // Logs en servidor
+    
+     console.log("📩 Solicitud de recuperación de contraseña");
+     console.log("Usuario:", user.email); 
+     console.log("Token generado:", recoveryToken); 
+     console.log("🔗 Enlace de recuperación:", resetLink); 
+     
+     // 🔹 Enviar también al frontend 
+     return res.json({ 
+      message: 'Si el correo existe, se enviará un enlace de recuperación', 
+      email: user.email, 
+      token: recoveryToken, 
+      resetLink 
+    }); 
+  } catch (err) { 
+    next(err); } }
+
+/**
+ * Restablecer contraseña con token de recuperación.
+ *
+ * @async
+ * @function resetPassword
+ * @param {Object} req - Objeto de solicitud de Express.
+ * @param {Object} req.body - Datos de restablecimiento.
+ * @param {string} req.body.token - Token JWT de recuperación.
+ * @param {string} req.body.newPassword - Nueva contraseña en texto plano.
+ * @param {Object} res - Objeto de respuesta de Express.
+ * @param {Function} next - Función para manejar errores.
+ * @returns {Object} JSON con confirmación de restablecimiento o error.
+ */
+export async function resetPassword(req, res, next) {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token) return res.status(400).json({ error: 'Token requerido' });
+    if (!regex.password.test(newPassword)) {
+      return res.status(400).json({ error: 'Contraseña inválida (mínimo 8 caracteres, letras y números)' });
+    }
+
+    // Verificar token
+    let payload;
+    try {
+      payload = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+      return res.status(401).json({ error: 'Token inválido o expirado' });
+    }
+
+    // Validar que sea un token de recuperación
+    if (payload.type !== 'password_recovery') {
+      return res.status(400).json({ error: 'Token no válido para recuperación' });
+    }
+
+    // Actualizar contraseña
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const user = await User.findByIdAndUpdate(
+      payload.sub,
+      { passwordHash },
+      { new: true }
+    ).select('_id email');
+
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    return res.json({ message: 'Contraseña restablecida correctamente' });
+  } catch (err) {
+    next(err);
+  }
+};
 
 
 
