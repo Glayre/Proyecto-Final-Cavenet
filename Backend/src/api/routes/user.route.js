@@ -7,7 +7,8 @@ import {
   getUserById,
   deleteUser,
   recoverPassword, // 👈 Controlador para recuperación de contraseña
-  resetPassword    // 👈 Nuevo controlador para restablecer contraseña
+  resetPassword,    // 👈 Nuevo controlador para restablecer contraseña
+  reportarPago  // 👈 Nuevo controlador para reportar pago
 } from '../controllers/user.controller.js';
 import authMiddleware, { isAdmin } from '../middleware/auth.middleware.js';
 
@@ -92,5 +93,14 @@ router.patch('/:id', authMiddleware(true), updateUser);
  * @access Privado (requiere autenticación y rol administrador)
  */
 router.delete('/:id', authMiddleware(true), isAdmin, deleteUser);
+
+/**
+ * @route POST /users/reporte-pago
+ * @group Users
+ * @summary Reportar pago manual
+ * @access Público
+ * @description Permite al usuario reportar un pago con nombre, correo y referencia bancaria
+ */
+router.post('/reporte-pago', reportarPago);
 
 export default router;

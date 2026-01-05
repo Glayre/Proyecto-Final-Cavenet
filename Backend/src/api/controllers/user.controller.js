@@ -329,7 +329,7 @@ export async function recoverPassword(req, res, next) {
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${recoveryToken}`;
 
     // Logs en servidor
-    
+
      console.log("📩 Solicitud de recuperación de contraseña");
      console.log("Usuario:", user.email); 
      console.log("Token generado:", recoveryToken); 
@@ -397,6 +397,49 @@ export async function resetPassword(req, res, next) {
 };
 
 
+/**
+ * Reportar pago de usuario.
+ *
+ * @async
+ * @function reportarPago
+ * @param {Object} req - Objeto de solicitud de Express.
+ * @param {Object} req.body - Datos del reporte de pago.
+ * @param {string} req.body.nombre - Nombre completo del usuario.
+ * @param {string} req.body.email - Correo electrónico del usuario.
+ * @param {string} req.body.referencia - Referencia bancaria del pago.
+ * @param {Object} res - Objeto de respuesta de Express.
+ * @param {Function} next - Función para manejar errores.
+ * @returns {Object} JSON con confirmación del reporte.
+ */
+export async function reportarPago(req, res, next) {
+  try {
+    const { nombre, email, referencia } = req.body;
+
+    // Validaciones básicas
+    if (!nombre || !regex.text.test(nombre)) {
+      return res.status(400).json({ error: "Nombre inválido" });
+    }
+    if (!email || !regex.email.test(email)) {
+      return res.status(400).json({ error: "Correo electrónico inválido" });
+    }
+    if (!referencia || referencia.length < 6) {
+      return res.status(400).json({ error: "Referencia bancaria inválida" });
+    }
+
+    // 🔹 Aquí podrías guardar el reporte en la base de datos si lo deseas
+    console.log("📩 Reporte de pago recibido:", { nombre, email, referencia });
+
+    // 🔹 Respuesta al frontend
+    return res.json({
+      message: "Reporte de pago recibido correctamente",
+      nombre,
+      email,
+      referencia,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
 
 
 
