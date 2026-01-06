@@ -4,6 +4,8 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import Payment from '../models/payment.model.js';
+import Invoice from '../models/invoice.model.js';
 
 dotenv.config();
 
@@ -404,38 +406,54 @@ export async function resetPassword(req, res, next) {
  * @function reportarPago
  * @param {Object} req - Objeto de solicitud de Express.
  * @param {Object} req.body - Datos del reporte de pago.
- * @param {string} req.body.nombre - Nombre completo del usuario.
- * @param {string} req.body.email - Correo electrónico del usuario.
- * @param {string} req.body.referencia - Referencia bancaria del pago.
+ * @param {string} req.body.clienteId - ID del usuario que reporta el pago.
+ * @param {string} req.body.invoiceId - ID de la factura pagada.
+ * @param {number} req.body.tasaVED - Tasa de cambio aplicada en VED (si aplica).
+ * @param {string} req.body.bancoOrigen - Banco desde el cual se realizó la transferencia.
+ * @param {string} req.body.cuentaDestino - Cuenta destino donde se recibió el pago.
+ * @param {string} req.body.referencia - Referencia del pago (últimos 6 dígitos).
+ * @param {number} req.body.monto - Monto pagado.
+ * @param {string} req.body.montoMoneda - Moneda del pago, puede ser "USD" o "VED".
  * @param {Object} res - Objeto de respuesta de Express.
  * @param {Function} next - Función para manejar errores.
  * @returns {Object} JSON con confirmación del reporte.
+
  */
 export async function reportarPago(req, res, next) {
   try {
-    const { nombre, email, referencia } = req.body;
+    const { clienteId, invoiceId, tasaVED, bancoOrigen, cuentaDestino, referencia, monto, montoMoneda } = req.body;
+    console.log("➡️ Reporte de pago recibido:", req.body);
 
     // Validaciones básicas
-    if (!nombre || !regex.text.test(nombre)) {
-      return res.status(400).json({ error: "Nombre inválido" });
+    
+    if (!['USD', 'VED'].includes(montoMoneda)) {
+      return res.status(400).json({ error: 'Moneda inválida. Debe ser "USD" o "VED"' });
     }
-    if (!email || !regex.email.test(email)) {
-      return res.status(400).json({ error: "Correo electrónico inválido" });
-    }
-    if (!referencia || referencia.length < 6) {
-      return res.status(400).json({ error: "Referencia bancaria inválida" });
-    }
-
-    // 🔹 Aquí podrías guardar el reporte en la base de datos si lo deseas
-    console.log("📩 Reporte de pago recibido:", { nombre, email, referencia });
-
-    // 🔹 Respuesta al frontend
-    return res.json({
-      message: "Reporte de pago recibido correctamente",
-      nombre,
-      email,
-      referencia,
+    
+    // Crear reporte de pago
+    const pago = await Payment.create({
+      clienteId,
+      invoiceId,
+      montoMoneda,
+      monto,
+      tasaVED: montoMoneda === 'VED' ? tasaVED : undefined,
+      bancoOrigen,
+      cuentaDestino,
+      referencia
     });
+
+    const factura = await Invoice.findOne({ _id: invoiceId });
+    
+    
+    if (factura.estado !== "pagado") {
+      console.log("➡️ Actualizando factura asociada al pago:", invoiceId);
+      factura.estado = "reportado"; //
+      await factura.save();
+      console.log("✅ Factura actualizada con referencia de pago:", factura._id);
+    }    
+
+    res.status(201).json({ message: 'Pago reportado correctamente', pago });
+
   } catch (err) {
     next(err);
   }

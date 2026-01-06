@@ -3,7 +3,8 @@ import {
   createInvoice,
   getAllInvoices,
   getInvoicesByClient,
-  updateInvoice
+  updateInvoice,
+  getInvoiceById
 } from "../controllers/invoice.controller.js";
 import authMiddleware, { isAdmin } from "../middleware/auth.middleware.js";
 
@@ -80,8 +81,22 @@ router.get("/:clienteId", authMiddleware(true), getInvoicesByClient);
 router.patch("/:id", authMiddleware(true), updateInvoice);
 
 /**
+ * Obtener una factura por ID (el propio cliente o admin).
+ *
+ * @route GET /api/invoices/:id
+ * @access Cliente/Admin (JWT requerido)
+ * @example
+ * GET http://localhost:4000/api/invoices/ID_DE_FACTURA
+ */
+router.get("/und/:id", authMiddleware(true), getInvoiceById);
+
+
+
+
+/**
  * Exportar el enrutador de facturas.
  *
  * @exports router
  */
 export default router;
+

@@ -68,11 +68,6 @@ export async function createInvoice(req, res, next) {
  */
 export async function getAllInvoices(req, res, next) {
   try {
-    console.log("➡️ Usuario autenticado:", req.user);
-
-    if (req.user.rol !== "admin") {
-      return res.status(403).json({ error: "Acceso denegado. Solo administradores pueden ver todas las facturas." });
-    }
 
     const invoices = await Invoice.find().populate("planId clienteId");
     console.log("✅ Facturas encontradas:", invoices.length);
@@ -84,7 +79,7 @@ export async function getAllInvoices(req, res, next) {
       montoUSD: inv.montoUSD,
       tasaVED: inv.tasaVED,
       montoBs: (inv.montoUSD * inv.tasaVED).toFixed(2),
-      estado: inv.estado === "pagado" ? "Pagada" : inv.estado === "pendiente" ? "Pendiente" : "Vencida",
+      estado: inv.estado,
       detalle: inv.detalle,
       moneda: inv.moneda
     }));
@@ -119,7 +114,7 @@ export async function getInvoicesByClient(req, res, next) {
       montoUSD: inv.montoUSD,
       tasaVED: inv.tasaVED,
       montoBs: (inv.montoUSD * inv.tasaVED).toFixed(2),
-      estado: inv.estado === "pagado" ? "Pagada" : inv.estado === "pendiente" ? "Pendiente" : "Vencida",
+      estado: inv.estado,
       detalle: inv.detalle,
       moneda: inv.moneda
     }));
@@ -190,3 +185,38 @@ export async function updateInvoice(req, res, next) {
     next(err);
   }
 }
+
+/** 
+ * 
+ * Consultar factura por ID (el propio cliente o admin).
+ * 
+*/
+
+export async function getInvoiceById(req, res, next) {
+  try {
+    const { id } = req.params;
+    console.log("datos usuario")
+    console.log("➡️ Consultando factura ID:", id);
+    const invoice = await Invoice.findById(id).populate("planId clienteId");
+
+    if (!invoice) {
+      return res.status(404).json({ error: "Factura no encontrada" });
+    }
+
+    const formatted = {
+      id: invoice._id,
+      fecha: invoice.fechaEmision ? invoice.fechaEmision.toLocaleDateString("es-VE") : "",
+      montoUSD: invoice.montoUSD,
+      tasaVED: invoice.tasaVED,
+      montoBs: (invoice.montoUSD * invoice.tasaVED).toFixed(2),
+      estado: invoice.estado === "pagado" ? "Pagada" : invoice.estado === "pendiente" ? "Pendiente" : "Vencida",
+      detalle: invoice.detalle,
+      moneda: invoice.moneda
+    };
+
+    res.json(formatted);
+  } catch (err) {
+    console.error("❌ Error en getInvoiceById:", err);
+    next(err);
+  } 
+    }

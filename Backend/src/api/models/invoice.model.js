@@ -51,7 +51,7 @@ const InvoiceSchema = new mongoose.Schema(
     mes: { type: String, required: true }, // Ejemplo: 'NOVIEMBRE 2025'
     montoUSD: { type: Number, required: true },
     tasaVED: { type: Number, required: true, default: 200 }, // Se actualiza con el hook
-    estado: { type: String, enum: ["pendiente", "pagado", "vencido"], default: "pendiente" },
+    estado: { type: String, enum: ["pendiente", "pagado", "vencido", "reportado"], default: "pendiente" },
     fechaEmision: { type: Date, default: Date.now },
     fechaVencimiento: { type: Date, required: true },
     fechaPago: { type: Date },
