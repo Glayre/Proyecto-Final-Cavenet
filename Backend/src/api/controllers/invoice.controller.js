@@ -1,5 +1,7 @@
 import Invoice from "../models/invoice.model.js";
 import Plan from "../models/plan.model.js";
+import User, { Address } from "../models/user.model.js"; // ✅ correcto
+
 
 /**
  * Crear una nueva factura (solo administrador).
@@ -26,7 +28,7 @@ export async function createInvoice(req, res, next) {
     }
 
     const detalle = `${plan.nombre.toUpperCase()} ${mes}`;
-    const moneda = `USD $ ${montoUSD.toFixed(2)}`;
+    const moneda = `${montoUSD.toFixed(2)}`;
 
     const fechaEmision = new Date();
     const fechaVencimiento = new Date();
@@ -41,9 +43,19 @@ export async function createInvoice(req, res, next) {
       fechaEmision,
       fechaVencimiento,
       detalle,
-      moneda
+      moneda,
+      montoAbonado: 0,
     });
 
+    // 🔹 Se carga el monto al usuario asociado al cliente ID 
+    const user = await User.findById(clienteId);
+    if (user) {
+      user.saldoFavorVED = (user.saldoFavorVED) - montoUSD;
+      await user.save();
+      console.log("✅ Balance del usuario actualizado:", user._id, "Nuevo balance USD:", user.saldoFavorVED);
+    } else {
+      console.log("⚠️ Usuario no encontrado para clienteId:", clienteId);
+    }
     console.log("✅ Factura creada:", invoice._id);
 
     // 🔹 Respuesta formateada para el frontend
@@ -51,12 +63,16 @@ export async function createInvoice(req, res, next) {
       id: invoice._id,
       fecha: fechaEmision.toLocaleDateString("es-VE"),
       montoUSD: invoice.montoUSD,
+      montoAbonado: invoice.montoAbonado || 0,              // 🔹 nuevo
+      
+      montoPendiente: (invoice.montoUSD - (invoice.montoAbonado || 0)), // 🔹 nuevo
       tasaVED: invoice.tasaVED,
       montoBs: (invoice.montoUSD * invoice.tasaVED).toFixed(2),
-      estado: invoice.estado === "pagado" ? "Pagada" : invoice.estado === "pendiente" ? "Pendiente" : "Vencida",
+      estado: invoice.estado,
       detalle: invoice.detalle,
       moneda: invoice.moneda
     });
+
   } catch (err) {
     console.error("❌ Error al crear factura:", err);
     next(err);
@@ -77,12 +93,15 @@ export async function getAllInvoices(req, res, next) {
       id: inv._id,
       fecha: inv.fechaEmision ? inv.fechaEmision.toLocaleDateString("es-VE") : "",
       montoUSD: inv.montoUSD,
+      montoAbonado: inv.montoAbonado || 0, // 🔹 nuevo
+      montoPendiente: (inv.montoUSD - (inv.montoAbonado || 0)), // 🔹 nuevo
       tasaVED: inv.tasaVED,
       montoBs: (inv.montoUSD * inv.tasaVED).toFixed(2),
       estado: inv.estado,
       detalle: inv.detalle,
       moneda: inv.moneda
     }));
+
 
     res.json(formatted);
   } catch (err) {
@@ -112,12 +131,15 @@ export async function getInvoicesByClient(req, res, next) {
       id: inv._id,
       fecha: inv.fechaEmision ? inv.fechaEmision.toLocaleDateString("es-VE") : "",
       montoUSD: inv.montoUSD,
+      montoAbonado: inv.montoAbonado || 0, // 🔹 nuevo
+      montoPendiente: (inv.montoUSD - (inv.montoAbonado || 0)), // 🔹 nuevo
       tasaVED: inv.tasaVED,
       montoBs: (inv.montoUSD * inv.tasaVED).toFixed(2),
       estado: inv.estado,
       detalle: inv.detalle,
       moneda: inv.moneda
     }));
+
 
     res.json(formatted);
   } catch (err) {
@@ -164,6 +186,14 @@ export async function updateInvoice(req, res, next) {
         plan.activo = true;
         await plan.save();
         console.log("✅ Plan reactivado:", plan._id);
+
+        // 🔹 Actualizar balance del usuario
+        const user = await User.findById(invoice.clienteId);
+        if (user) {
+          user.saldoFavorVED = (user.saldoFavorVED) + invoice.montoUSD;
+          await user.save();
+          console.log("✅ Balance del usuario actualizado tras pago:", user._id, "Nuevo balance USD:", user.saldoFavorVED);  
+        }
       }
     }
 
@@ -177,6 +207,8 @@ export async function updateInvoice(req, res, next) {
       tasaVED: invoice.tasaVED,
       montoBs: (invoice.montoUSD * invoice.tasaVED).toFixed(2),
       estado: invoice.estado === "pagado" ? "Pagada" : invoice.estado === "pendiente" ? "Pendiente" : "Vencida",
+      montoAbonado: invoice.montoAbonado || 0,
+      montoPendiente: (invoice.montoUSD - (invoice.montoAbonado || 0)),
       detalle: invoice.detalle,
       moneda: invoice.moneda
     });
@@ -191,6 +223,7 @@ export async function updateInvoice(req, res, next) {
  * Consultar factura por ID (el propio cliente o admin).
  * 
 */
+
 
 export async function getInvoiceById(req, res, next) {
   try {
@@ -209,6 +242,8 @@ export async function getInvoiceById(req, res, next) {
       montoUSD: invoice.montoUSD,
       tasaVED: invoice.tasaVED,
       montoBs: (invoice.montoUSD * invoice.tasaVED).toFixed(2),
+      montoAbonado: invoice.montoAbonado || 0,
+      montoPendiente: (invoice.montoUSD - (invoice.montoAbonado || 0)),
       estado: invoice.estado === "pagado" ? "Pagada" : invoice.estado === "pendiente" ? "Pendiente" : "Vencida",
       detalle: invoice.detalle,
       moneda: invoice.moneda
