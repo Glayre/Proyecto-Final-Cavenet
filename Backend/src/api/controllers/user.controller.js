@@ -1,4 +1,4 @@
-import { User, Address } from '../models/user.model.js';
+import User, { Address } from "../models/user.model.js";
 import regex from '../../utils/regex.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
@@ -6,6 +6,8 @@ import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 import Payment from '../models/payment.model.js';
 import Invoice from '../models/invoice.model.js';
+import Plan from '../models/plan.model.js';
+
 
 dotenv.config();
 
@@ -123,6 +125,8 @@ export async function login(req, res, next) {
     const userSafe = await User.findById(user._id)
       .populate('direccion');
 
+    const plan = await Plan.findById(user.planId);
+
     const userinfo = {
       _id: userSafe._id,
       cedula: userSafe.cedula,
@@ -137,6 +141,15 @@ export async function login(req, res, next) {
         urbanizacion: userSafe.direccion.urbanizacion,
         calle: userSafe.direccion.calle,
       },
+      saldoFavorVED: userSafe.saldoFavorVED,
+      plan: plan ? {
+        _id: plan._id,
+        nombre: plan.nombre,
+        velocidadMbps: plan.velocidadMbps,
+        precioUSD: plan.precioUSD,
+        tipo: plan.tipo,
+        activo: plan.activo
+      } : null
     };
 
     res.json({ message: 'Login exitoso', token, user: userinfo });
@@ -398,39 +411,22 @@ export async function resetPassword(req, res, next) {
   }
 };
 
-
 /**
  * Reportar pago de usuario.
  *
  * @async
  * @function reportarPago
- * @param {Object} req - Objeto de solicitud de Express.
- * @param {Object} req.body - Datos del reporte de pago.
- * @param {string} req.body.clienteId - ID del usuario que reporta el pago.
- * @param {string} req.body.invoiceId - ID de la factura pagada.
- * @param {number} req.body.tasaVED - Tasa de cambio aplicada en VED (si aplica).
- * @param {string} req.body.bancoOrigen - Banco desde el cual se realizó la transferencia.
- * @param {string} req.body.cuentaDestino - Cuenta destino donde se recibió el pago.
- * @param {string} req.body.referencia - Referencia del pago (últimos 6 dígitos).
- * @param {number} req.body.monto - Monto pagado.
- * @param {string} req.body.montoMoneda - Moneda del pago, puede ser "USD" o "VED".
- * @param {Object} res - Objeto de respuesta de Express.
- * @param {Function} next - Función para manejar errores.
- * @returns {Object} JSON con confirmación del reporte.
-
+ * @returns {Object} JSON con confirmación del reporte y factura actualizada.
  */
 export async function reportarPago(req, res, next) {
   try {
     const { clienteId, invoiceId, tasaVED, bancoOrigen, cuentaDestino, referencia, monto, montoMoneda } = req.body;
     console.log("➡️ Reporte de pago recibido:", req.body);
 
-    // Validaciones básicas
-    
     if (!['USD', 'VED'].includes(montoMoneda)) {
       return res.status(400).json({ error: 'Moneda inválida. Debe ser "USD" o "VED"' });
     }
-    
-    // Crear reporte de pago
+
     const pago = await Payment.create({
       clienteId,
       invoiceId,
@@ -442,30 +438,58 @@ export async function reportarPago(req, res, next) {
       referencia
     });
 
-    const factura = await Invoice.findOne({ _id: invoiceId });
-    
-    
-    if (factura.estado !== "pagado") {
-      console.log("➡️ Actualizando factura asociada al pago:", invoiceId);
-      factura.estado = "reportado"; //
-      await factura.save();
-      console.log("✅ Factura actualizada con referencia de pago:", factura._id);
-    }    
+    const factura = await Invoice.findById(invoiceId);
+    if (!factura) {
+      return res.status(404).json({ error: "Factura no encontrada" });
+    }
 
-    res.status(201).json({ message: 'Pago reportado correctamente', pago });
+    // 🔧 Sumar el abono y recalcular pendiente SIEMPRE
+    factura.montoAbonado = (factura.montoAbonado || 0) + monto;
+    factura.montoPendiente = factura.montoUSD - factura.montoAbonado;
+
+    // 🔧 Actualizar estado según el saldo pendiente
+    if (factura.montoPendiente <= 0) {
+      factura.estado = "pagado";
+      factura.fechaPago = new Date();
+    } else {
+      factura.estado = "reportado";
+    }
+
+    // 🔧 Guardar datos del pago
+    factura.referenciaPago = referencia;
+    factura.bancoOrigen = bancoOrigen;
+    factura.cuentaDestino = cuentaDestino;
+
+    await factura.save();
+
+    console.log("✅ Factura actualizada con abono:", factura._id, "Monto abonado:", factura.montoAbonado);
+
+    res.status(201).json({
+      message: 'Pago reportado correctamente',
+      pago,
+      factura: {
+        id: factura._id,
+        clienteId: factura.clienteId,
+        montoUSD: factura.montoUSD,
+        montoAbonado: factura.montoAbonado,
+        montoPendiente: factura.montoPendiente,
+        tasaVED: factura.tasaVED,
+        montoBs: (factura.montoUSD * factura.tasaVED).toFixed(2),
+        estado: factura.estado,
+        detalle: factura.detalle,
+        moneda: factura.moneda,
+        referenciaPago: factura.referenciaPago,
+        bancoOrigen: factura.bancoOrigen,
+        cuentaDestino: factura.cuentaDestino,
+        fechaPago: factura.fechaPago
+      }
+    });
 
   } catch (err) {
+    console.error("❌ Error en reportarPago:", err);
     next(err);
   }
 }
-
-
-
-
-
-
-
-
 
 
 

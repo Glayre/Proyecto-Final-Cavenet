@@ -1,7 +1,6 @@
-import bcrypt from "bcrypt";
-import {User, Address} from "../api/models/user.model.js";
-import 'dotenv/config';
-
+import bcrypt from "bcrypt"; 
+import User, { Address } from "../api/models/user.model.js"; // ✅ corregido: User es default, Address nombrado import "dotenv/config";
+import "dotenv/config";
 
 const createDefaultAdminUser = async () => {
   try {

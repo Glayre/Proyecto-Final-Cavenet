@@ -7,6 +7,7 @@ import mongoose from 'mongoose';
  * Incluye información sobre nombre, velocidad, precio, tipo y estado de disponibilidad.
  *
  * @typedef {Object} Plan
+ * @property {mongoose.ObjectId} usuarioId - Referencia al usuario (cliente) asociado al plan.
  * @property {string} nombre - Nombre del plan (ejemplo: "Básico 100 Mbps").
  * @property {number} velocidadMbps - Velocidad del plan en Mbps.
  * @property {number} precioUSD - Precio del plan en dólares estadounidenses.
@@ -17,6 +18,7 @@ import mongoose from 'mongoose';
  */
 const PlanSchema = new mongoose.Schema(
   {
+    usuarioId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     nombre: { type: String, required: true }, // Ejemplo: "Básico 100 Mbps"
     velocidadMbps: { type: Number, required: true },
     precioUSD: { type: Number, required: true },

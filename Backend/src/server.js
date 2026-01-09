@@ -9,7 +9,7 @@
 import { createServer } from "http";
 import app from "./app.js";
 import { loadEnv } from "./config/env.js";
-import createDefaultAdminUser from "./utils/CreateDefaultAdminUser.js";
+import createDefaultAdminUser from "./utils/createDefaultAdminUser.js";
 import { startInvoiceCron } from "./jobs/invoices.cron.js";
 
 /**

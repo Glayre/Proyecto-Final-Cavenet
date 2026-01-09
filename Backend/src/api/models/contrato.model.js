@@ -13,12 +13,21 @@ import mongoose from "mongoose";
  * - cedula: obligatorio, solo números (7 a 9 dígitos)
  * - correo: obligatorio, formato válido
  * - fechaNacimiento: obligatorio, formato dd/mm/aaaa
- * - plan: obligatorio, solo valores permitidos
+ * - planId: obligatorio, referencia a Plan
  * - telefono: opcional, 11 dígitos
  * - correoAlternativo: opcional, formato válido
  */
 const contratoSchema = new mongoose.Schema(
   {
+    usuarioId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "User" 
+    }, 
+    planId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Plan",
+      required: [true, "El plan es obligatorio"]
+    },
     nombres: {
       type: String,
       required: [true, "El nombre es obligatorio"],
@@ -39,7 +48,7 @@ const contratoSchema = new mongoose.Schema(
       match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Formato de correo inválido"],
     },
     fechaNacimiento: {
-      type: String,
+      type: String, // ⚠️ Considera cambiar a Date si necesitas cálculos
       required: [true, "La fecha de nacimiento es obligatoria"],
       match: [/^\d{2}\/\d{2}\/\d{4}$/, "Formato de fecha inválido (dd/mm/aaaa)"],
     },
@@ -47,11 +56,7 @@ const contratoSchema = new mongoose.Schema(
     callePrincipal: { type: String },
     calleSecundaria: { type: String },
     numeroCasa: { type: String },
-    plan: {
-      type: String,
-      enum: ["Redes Sociales", "Multimedia", "FullHD"],
-      required: [true, "El plan es obligatorio"],
-    },
+    
     telefono: {
       type: String,
       match: [/^\d{11}$/, "Formato de teléfono inválido (11 dígitos)"],

@@ -8,6 +8,7 @@ import mongoose from 'mongoose';
  *
  * @typedef {Object} User
  * @property {string} cedula - Documento de identidad único del usuario (7-8 dígitos numéricos).
+ * @property {mongoose.ObjectId} planId - Referencia al plan contratado por el usuario.
  * @property {string} email - Correo electrónico único del usuario.
  * @property {string} passwordHash - Contraseña encriptada del usuario.
  * @property {string} nombre - Nombre del usuario.
@@ -24,6 +25,7 @@ import mongoose from 'mongoose';
 const userSchema = new mongoose.Schema(
   {
     cedula: { type: String, unique: true, index: true, required: true },
+    planId: { type: mongoose.Schema.Types.ObjectId, ref: 'Plan' },
     email: { type: String, unique: true, index: true, required: true },
     passwordHash: { type: String, required: true },
     nombre: { type: String, required: true },
@@ -98,4 +100,5 @@ const addressSchema = new mongoose.Schema(
 const User = mongoose.model('User', userSchema);
 const Address = mongoose.model('Address', addressSchema);
 
-export { User, Address };
+export default User;
+export { Address };
