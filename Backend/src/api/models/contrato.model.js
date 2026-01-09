@@ -19,7 +19,7 @@ import mongoose from "mongoose";
  */
 const contratoSchema = new mongoose.Schema(
   {
-    usuarioId: { 
+    clienteId: { 
       type: mongoose.Schema.Types.ObjectId, 
       ref: "User" 
     }, 

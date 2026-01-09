@@ -12,7 +12,7 @@ import Plan from "../models/plan.model.js";   // Modelo de planes
  * 
  * @function crearContrato
  * @description Valida que el usuario y el plan existan antes de crear el contrato. 
- * Devuelve el contrato creado con el plan populado.
+ * Devuelve el contrato creado con el plan y usuario populados.
  * 
  * @param {import("express").Request} req - Objeto de la petición HTTP
  * @param {import("express").Response} res - Objeto de la respuesta HTTP
@@ -20,8 +20,8 @@ import Plan from "../models/plan.model.js";   // Modelo de planes
  * @example
  * // POST /api/contratos
  * {
- *   "usuarioid": "65a1234567890",
- *   "planid": "65b9876543210",
+ *   "usuarioId": "65a1234567890",
+ *   "planId": "65b9876543210",
  *   "nombres": "Juan",
  *   "apellidos": "Pérez",
  *   "correo": "juan@test.com"
@@ -29,26 +29,26 @@ import Plan from "../models/plan.model.js";   // Modelo de planes
  */
 export const crearContrato = async (req, res) => {
   try {
-    const { usuarioid, planid, ...resto } = req.body;
+    const { clienteId, planId, ...resto } = req.body;
 
     // 1️⃣ Validar usuario
-    const usuario = await User.findById(usuarioid);
+    const usuario = await User.findById(usuarioId);
     if (!usuario) {
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
     // 2️⃣ Validar plan
-    const plan = await Plan.findById(planid);
+    const plan = await Plan.findById(planId);
     if (!plan) {
       return res.status(404).json({ error: "Plan no encontrado" });
     }
 
     // 3️⃣ Crear contrato
-    const contrato = new Contrato({ usuarioid, planid, ...resto });
+    const contrato = new Contrato({ usuarioId, planId, ...resto });
     await contrato.save();
 
     // 4️⃣ Populate para devolver plan y usuario completos
-    const contratoConDatos = await contrato.populate("planid").populate("usuarioid");
+    const contratoConDatos = await contrato.populate("planId").populate("usuarioId");
 
     res.status(201).json({
       mensaje: "Contrato creado exitosamente",
@@ -74,8 +74,8 @@ export const crearContrato = async (req, res) => {
 export const listarContratos = async (req, res) => {
   try {
     const contratos = await Contrato.find()
-      .populate("planid")
-      .populate("usuarioid");
+      .populate("planId")
+      .populate("usuarioId");
 
     res.status(200).json(contratos);
   } catch (error) {
@@ -99,9 +99,9 @@ export const obtenerContratoPorUsuario = async (req, res) => {
   try {
     const { usuarioId } = req.params;
 
-    const contrato = await Contrato.findOne({ usuarioid: usuarioId })
-      .populate("planid")
-      .populate("usuarioid");
+    const contrato = await Contrato.findOne({ usuarioId })
+      .populate("planId")
+      .populate("usuarioId");
 
     if (!contrato) {
       return res.status(404).json({ error: "No se encontró contrato para este usuario" });
@@ -112,3 +112,4 @@ export const obtenerContratoPorUsuario = async (req, res) => {
     res.status(500).json({ error: "Error al obtener contrato", detalle: error.message });
   }
 };
+
