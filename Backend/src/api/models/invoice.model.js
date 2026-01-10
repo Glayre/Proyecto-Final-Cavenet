@@ -31,7 +31,8 @@ const consultarTasa = async () => {
  * @property {mongoose.ObjectId} clienteId - Referencia al usuario (cliente) asociado a la factura.
  * @property {mongoose.ObjectId} planId - Referencia al plan contratado.
  * @property {string} mes - Mes de facturación (ejemplo: "NOVIEMBRE 2025").
- * @property {number} montoUSD - Monto de la factura en dólares estadounidenses.
+ * @property {number} monto - Monto de la factura en dólares estadounidenses.
+ * @property {number} montoAbonado - Monto abonado en VED (calculado al momento del pago).
  * @property {number} tasaVED - Tasa de cambio aplicada en VED (ejemplo: 233.56).
  * @property {string} estado - Estado de la factura, puede ser "pendiente", "pagado" o "vencido".
  * @property {Date} fechaEmision - Fecha de emisión de la factura (por defecto la fecha actual).
@@ -49,7 +50,8 @@ const InvoiceSchema = new mongoose.Schema(
     clienteId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     planId: { type: mongoose.Schema.Types.ObjectId, ref: "Plan", required: true },
     mes: { type: String, required: true }, // Ejemplo: 'NOVIEMBRE 2025'
-    montoUSD: { type: Number, required: true },
+    monto: { type: Number, required: true },
+    montoAbonado: { type: Number, default: 0 }, // Se actualiza al pagar
     tasaVED: { type: Number, required: true, default: 200 }, // Se actualiza con el hook
     estado: { type: String, enum: ["pendiente", "pagado", "vencido", "reportado"], default: "pendiente" },
     fechaEmision: { type: Date, default: Date.now },

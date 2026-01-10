@@ -20,21 +20,19 @@ import Plan from "../models/plan.model.js";   // Modelo de planes
  * @example
  * // POST /api/contratos
  * {
- *   "usuarioId": "65a1234567890",
+ *   "clienteId": "65a1234567890",
  *   "planId": "65b9876543210",
- *   "nombres": "Juan",
- *   "apellidos": "Pérez",
- *   "correo": "juan@test.com"
+ *   "correoAlternativo": "bGK2D@example.com"
  * }
  */
 export const crearContrato = async (req, res) => {
   try {
-    const { clienteId, planId, ...resto } = req.body;
+    const { clienteId, planId } = req.body;
 
-    // 1️⃣ Validar usuario
-    const usuario = await User.findById(usuarioId);
-    if (!usuario) {
-      return res.status(404).json({ error: "Usuario no encontrado" });
+    // 1️⃣ Validar cliente
+    const cliente = await User.findById(clienteId);
+    if (!cliente) {
+      return res.status(404).json({ error: "Cliente no encontrado" });
     }
 
     // 2️⃣ Validar plan
@@ -42,18 +40,38 @@ export const crearContrato = async (req, res) => {
     if (!plan) {
       return res.status(404).json({ error: "Plan no encontrado" });
     }
+    /**
+     * Esquema de contrato con validaciones.
+     *
+     * - clienteId: referencia a User
+     * - planId: referencia a Plan
+     * - plan: obligatorio
+     * - nombres: obligatorio, mínimo 2 caracteres
+     * - apellidos: obligatorio
+     * - cedula: obligatorio, solo números (7 a 9 dígitos)
+     * - correo: obligatorio, formato válido
+     * - telefono: opcional, 11 dígitos
+     * - correoAlternativo: opcional, formato válido
+     */
+
+    const nuevoContrato = {
+      clienteId: cliente._id, 
+      planId: plan._id,
+      plan: plan.nombre,
+      nombres: cliente.nombre,
+      apellidos: cliente.apellido,
+      correo: cliente.email,
+      telefono: cliente.telefono,
+      cedula: cliente.cedula,
+      correoAlternativo: req.body.correoAlternativo,
+    }
 
     // 3️⃣ Crear contrato
-    const contrato = new Contrato({ usuarioId, planId, ...resto });
+    const contrato = new Contrato(nuevoContrato);
     await contrato.save();
 
-    // 4️⃣ Populate para devolver plan y usuario completos
-    const contratoConDatos = await contrato.populate("planId").populate("usuarioId");
 
-    res.status(201).json({
-      mensaje: "Contrato creado exitosamente",
-      contrato: contratoConDatos,
-    });
+    res.status(201).json({mensaje: "Contrato creado exitosamente", datos: contrato});
   } catch (error) {
     res.status(400).json({ error: "Error al crear contrato", detalle: error.message });
   }
@@ -75,7 +93,7 @@ export const listarContratos = async (req, res) => {
   try {
     const contratos = await Contrato.find()
       .populate("planId")
-      .populate("usuarioId");
+      .populate("clienteId");
 
     res.status(200).json(contratos);
   } catch (error) {

@@ -8,6 +8,8 @@ import Payment from '../models/payment.model.js';
 import Invoice from '../models/invoice.model.js';
 import Plan from '../models/plan.model.js';
 
+import obtenerTasaDolar from '../../utils/tasaDolar.js';
+
 
 dotenv.config();
 
@@ -420,12 +422,24 @@ export async function resetPassword(req, res, next) {
  */
 export async function reportarPago(req, res, next) {
   try {
-    const { clienteId, invoiceId, tasaVED, bancoOrigen, cuentaDestino, referencia, monto, montoMoneda } = req.body;
+    const { clienteId, invoiceId, bancoOrigen, cuentaDestino, referencia, monto } = req.body;
     console.log("➡️ Reporte de pago recibido:", req.body);
 
-    if (!['USD', 'VED'].includes(montoMoneda)) {
-      return res.status(400).json({ error: 'Moneda inválida. Debe ser "USD" o "VED"' });
+    // 🔹 Validaciones básica
+    
+    if (!clienteId || !invoiceId || !bancoOrigen || !cuentaDestino || !referencia || !monto) {
+      return res.status(400).json({ error: 'Faltan campos obligatorios' });
     }
+
+    if (monto <= 0) {
+      return res.status(400).json({ error: 'Monto debe ser mayor que 0' });
+    }
+
+    const tasaVED = await obtenerTasaDolar();
+
+    const montoMoneda = 'VED';
+
+
 
     const pago = await Payment.create({
       clienteId,
@@ -438,52 +452,37 @@ export async function reportarPago(req, res, next) {
       referencia
     });
 
+    const user = await User.findById(clienteId);
+    if (!user) {
+      return res.status(404).json({ error: 'Cliente no encontrado' });
+    }
+
+   // Actualizar monto abonado y pendiente de la persona
+
+    user.saldoFavorVED += monto*(tasaVED);
+
+    await user.save();
+
+    // Actualizar factura asociada
     const factura = await Invoice.findById(invoiceId);
     if (!factura) {
-      return res.status(404).json({ error: "Factura no encontrada" });
+      return res.status(404).json({ error: 'Factura no encontrada' });
     }
+    
 
-    // 🔧 Sumar el abono y recalcular pendiente SIEMPRE
-    factura.montoAbonado = (factura.montoAbonado || 0) + monto;
-    factura.montoPendiente = factura.montoUSD - factura.montoAbonado;
 
-    // 🔧 Actualizar estado según el saldo pendiente
-    if (factura.montoPendiente <= 0) {
-      factura.estado = "pagado";
-      factura.fechaPago = new Date();
-    } else {
-      factura.estado = "reportado";
+    let montoAbonado = monto / tasaVED;
+
+    factura.montoAbonado += montoAbonado;
+
+    if(factura.montoAbonado >= factura.montoUSD) {
+      factura.estado = 'pagada';
     }
-
-    // 🔧 Guardar datos del pago
-    factura.referenciaPago = referencia;
-    factura.bancoOrigen = bancoOrigen;
-    factura.cuentaDestino = cuentaDestino;
 
     await factura.save();
+    console.log("✅ Pago reportado y factura actualizada:", { pago, factura });
 
-    console.log("✅ Factura actualizada con abono:", factura._id, "Monto abonado:", factura.montoAbonado);
-
-    res.status(201).json({
-      message: 'Pago reportado correctamente',
-      pago,
-      factura: {
-        id: factura._id,
-        clienteId: factura.clienteId,
-        montoUSD: factura.montoUSD,
-        montoAbonado: factura.montoAbonado,
-        montoPendiente: factura.montoPendiente,
-        tasaVED: factura.tasaVED,
-        montoBs: (factura.montoUSD * factura.tasaVED).toFixed(2),
-        estado: factura.estado,
-        detalle: factura.detalle,
-        moneda: factura.moneda,
-        referenciaPago: factura.referenciaPago,
-        bancoOrigen: factura.bancoOrigen,
-        cuentaDestino: factura.cuentaDestino,
-        fechaPago: factura.fechaPago
-      }
-    });
+    res.json({ message: 'Pago reportado correctamente', pago, factura });
 
   } catch (err) {
     console.error("❌ Error en reportarPago:", err);

@@ -6,6 +6,7 @@
 
 import { Router } from "express";
 import { crearContrato, listarContratos } from "../controllers/contrato.controller.js";
+import authMiddleware, {isAdmin} from "../middleware/auth.middleware.js";
 
 const router = Router();
 
@@ -30,7 +31,7 @@ const router = Router();
  *   "contrato": { ... }
  * }
  */
-router.post("/", crearContrato);
+router.post("/", authMiddleware(true), isAdmin , crearContrato);
 
 /**
  * @route GET /api/contrato
@@ -50,6 +51,6 @@ router.post("/", crearContrato);
  *   }
  * ]
  */
-router.get("/", listarContratos);
+router.get("/", authMiddleware(true), isAdmin, listarContratos);
 
 export default router;
