@@ -2,7 +2,7 @@ import { Router } from "express";
 import planRoutes from "./plan.route.js";
 import userRoutes from "./user.route.js";
 import invoiceRoutes from "./invoice.route.js";
-import contratoRoutes from "./contrato.js"; 
+import contratoRoutes from "./contrato.route.js"; 
 
 /**
  * Enrutador principal de la API.

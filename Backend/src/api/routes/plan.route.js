@@ -3,7 +3,6 @@ import {
   getPlans,
   getPlanById,
   createPlan,
-  contratarPlan,
   updatePlan,
   deletePlan
 } from "../controllers/plan.controller.js";
@@ -50,13 +49,13 @@ router.get("/:id", getPlanById);
  */
 router.post("/", authMiddleware(true), isAdmin, createPlan);
 
-/**
- * Contratar un plan (cliente autenticado).
- *
- * @route POST /plans/contratar
- * @access Privado (cliente)
- */
-router.post("/contratar", authMiddleware(true), contratarPlan);
+// /**
+//  * Contratar un plan (cliente autenticado).
+//  *
+//  * @route POST /plans/contratar
+//  * @access Privado (cliente)
+//  */
+// router.post("/contratar", authMiddleware(true), contratarPlan);
 
 /**
  * Actualizar un plan existente por ID.

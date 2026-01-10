@@ -1,8 +1,10 @@
 import Invoice from "../models/invoice.model.js";
+import Contrato from "../models/contrato.model.js";
 import Plan from "../models/plan.model.js";
 import User, { Address } from "../models/user.model.js"; // ✅ correcto
+import obtenerTasaDolar from "../../utils/tasaDolar.js";
 
-
+// 
 /**
  * Crear una nueva factura (solo administrador).
  */
@@ -10,47 +12,65 @@ export async function createInvoice(req, res, next) {
   try {
     console.log("➡️ Body recibido en createInvoice:", req.body);
     console.log("➡️ Usuario autenticado:", req.user);
+    const {contratoId} = req.body;
 
-    if (req.user.rol !== "admin") {
-      return res.status(403).json({ error: "Acceso denegado. Solo administradores pueden crear facturas." });
+    // 🔹 Buscar el contrato para obtener clienteId y planI
+    const contrato = await Contrato.findById(contratoId); // ✅ correcto
+    if (!contrato) {
+      return res.status(404).json({ error: "Contrato no encontrado" });
     }
 
-    const { clienteId, planId, mes, montoUSD, referenciaPago } = req.body;
+    const clienteId = contrato.clienteId;
+    const planId = contrato.planId;
 
-    if (!clienteId || !planId || !mes || !montoUSD) {
-      return res.status(400).json({ error: "Debe especificar clienteId, planId, mes y montoUSD" });
-    }
-
-    // 🔹 Buscar el plan para construir detalle y moneda
+    // 🔹 Buscar el plan para obtener el montoUS
     const plan = await Plan.findById(planId);
     if (!plan) {
       return res.status(404).json({ error: "Plan no encontrado" });
     }
 
+    const monto = plan.precioUSD;
+
+    // 🔹 Generar mes de la factura (formato "MM-YYYY")
+    const fechaActual = new Date();
+    const mes = `${String(fechaActual.getMonth() + 1).padStart(2, '0')}-${fechaActual.getFullYear()}`;
+
+    // 🔹 Generar referencia de pago única
+    const referenciaPago = `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+
+
     const detalle = `${plan.nombre.toUpperCase()} ${mes}`;
-    const moneda = `${montoUSD.toFixed(2)}`;
+    const moneda = `USD`;
 
     const fechaEmision = new Date();
     const fechaVencimiento = new Date();
     fechaVencimiento.setDate(fechaEmision.getDate() + 30);
 
-    const invoice = await Invoice.create({
+    // 🔹 Obtener la tasa de cambio actual (simulada aquí como fija)
+    const tasaVED = await obtenerTasaDolar();
+
+    // 🔹 Crear la factur
+    const invoice = new Invoice({
       clienteId,
       planId,
-      mes,
-      montoUSD,
-      referenciaPago,
       fechaEmision,
       fechaVencimiento,
-      detalle,
+      mes,
+      monto,
+      tasaVED,
       moneda,
-      montoAbonado: 0,
+      detalle,
+      referenciaPago,
+      estado: "pendiente"
     });
+
+    await invoice.save();
 
     // 🔹 Se carga el monto al usuario asociado al cliente ID 
     const user = await User.findById(clienteId);
     if (user) {
-      user.saldoFavorVED = (user.saldoFavorVED) - montoUSD;
+      user.saldoFavorVED = (user.saldoFavorVED) - monto;
       await user.save();
       console.log("✅ Balance del usuario actualizado:", user._id, "Nuevo balance USD:", user.saldoFavorVED);
     } else {
@@ -62,12 +82,12 @@ export async function createInvoice(req, res, next) {
     res.status(201).json({
       id: invoice._id,
       fecha: fechaEmision.toLocaleDateString("es-VE"),
-      montoUSD: invoice.montoUSD,
+      monto: invoice.montoUSD,
       montoAbonado: invoice.montoAbonado || 0,              // 🔹 nuevo
       
-      montoPendiente: (invoice.montoUSD - (invoice.montoAbonado || 0)), // 🔹 nuevo
+      montoPendiente: (invoice.monto - (invoice.montoAbonado || 0)), // 🔹 nuevo
       tasaVED: invoice.tasaVED,
-      montoBs: (invoice.montoUSD * invoice.tasaVED).toFixed(2),
+      montoBs: (invoice.monto * invoice.tasaVED).toFixed(2),
       estado: invoice.estado,
       detalle: invoice.detalle,
       moneda: invoice.moneda

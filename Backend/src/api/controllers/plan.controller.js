@@ -1,4 +1,5 @@
 import Plan from "../models/plan.model.js";
+import User from "../models/user.model.js";
 import Invoice from "../models/invoice.model.js";
 import regex from "../../utils/regex.js";
 
@@ -19,7 +20,7 @@ import regex from "../../utils/regex.js";
  */
 export async function createPlan(req, res, next) {
   try {
-    const { nombre, velocidadMbps, precioUSD, tipo } = req.body;
+    const {nombre, velocidadMbps, precioUSD, tipo } = req.body;
 
     if (!regex.text.test(nombre)) {
       return res.status(400).json({ error: "Nombre inválido (solo letras, entre 2 y 200 caracteres)" });
@@ -33,7 +34,6 @@ export async function createPlan(req, res, next) {
     if (!["hogar", "pyme"].includes(tipo)) {
       return res.status(400).json({ error: 'Tipo inválido (solo se acepta "hogar" o "pyme")' });
     }
-
     const plan = await Plan.create(req.body);
     res.status(201).json(plan);
   } catch (err) {
@@ -41,53 +41,53 @@ export async function createPlan(req, res, next) {
   }
 }
 
-/**
- * Contratar un plan (cliente) y generar factura automática.
- *
- * @async
- * @function contratarPlan
- * @param {import("express").Request} req - Objeto de solicitud HTTP.
- * @param {Object} req.body - Datos de contratación.
- * @param {string} req.body.planId - ID del plan a contratar.
- * @param {import("express").Response} res - Objeto de respuesta HTTP.
- * @param {Function} next - Middleware para manejo de errores.
- * @returns {Promise<void>} Devuelve el plan contratado y la factura generada.
- */
-export async function contratarPlan(req, res, next) {
-  try {
-    const { planId } = req.body;
-    const clienteId = req.user._id; // cliente autenticado
+// /**
+//  * Contratar un plan (cliente) y generar factura automática.
+//  *
+//  * @async
+//  * @function contratarPlan
+//  * @param {import("express").Request} req - Objeto de solicitud HTTP.
+//  * @param {Object} req.body - Datos de contratación.
+//  * @param {string} req.body.planId - ID del plan a contratar.
+//  * @param {import("express").Response} res - Objeto de respuesta HTTP.
+//  * @param {Function} next - Middleware para manejo de errores.
+//  * @returns {Promise<void>} Devuelve el plan contratado y la factura generada.
+//  */
+// export async function contratarPlan(req, res, next) {
+//   try {
+//     const { planId } = req.body;
+//     const clienteId = req.user._id; // cliente autenticado
 
-    const plan = await Plan.findById(planId);
-    if (!plan) return res.status(404).json({ error: "Plan no encontrado" });
+//     const plan = await Plan.findById(planId);
+//     if (!plan) return res.status(404).json({ error: "Plan no encontrado" });
 
-    // 🔹 Crear factura automática
-    const fechaEmision = new Date();
-    const fechaVencimiento = new Date();
-    fechaVencimiento.setDate(fechaEmision.getDate() + 30);
+//     // 🔹 Crear factura automática
+//     const fechaEmision = new Date();
+//     const fechaVencimiento = new Date();
+//     fechaVencimiento.setDate(fechaEmision.getDate() + 30);
 
-    const invoice = await Invoice.create({
-      clienteId,
-      planId,
-      mes: fechaEmision.toLocaleString("es-VE", { month: "long", year: "numeric" }).toUpperCase(),
-      montoUSD: plan.precioUSD,
-      fechaEmision,
-      fechaVencimiento,
-      estado: "pendiente"
-    });
+//     const invoice = await Invoice.create({
+//       clienteId,
+//       planId,
+//       mes: fechaEmision.toLocaleString("es-VE", { month: "long", year: "numeric" }).toUpperCase(),
+//       montoUSD: plan.precioUSD,
+//       fechaEmision,
+//       fechaVencimiento,
+//       estado: "pendiente"
+//     });
 
-    console.log("✅ Factura creada automáticamente:", invoice._id);
+//     console.log("✅ Factura creada automáticamente:", invoice._id);
 
-    res.status(201).json({
-      message: "Plan contratado y factura generada automáticamente",
-      plan,
-      invoice
-    });
-  } catch (err) {
-    console.error("❌ Error al contratar plan:", err);
-    next(err);
-  }
-}
+//     res.status(201).json({
+//       message: "Plan contratado y factura generada automáticamente",
+//       plan,
+//       invoice
+//     });
+//   } catch (err) {
+//     console.error("❌ Error al contratar plan:", err);
+//     next(err);
+//   }
+// }
 
 /**
  * Actualizar un plan existente con validaciones.

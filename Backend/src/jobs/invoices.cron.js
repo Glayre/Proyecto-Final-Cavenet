@@ -1,6 +1,6 @@
 import cron from "node-cron";
 import Invoice from "../api/models/invoice.model.js";
-import Plan from "../api/models/plan.model.js";
+import Contrato from "../api/models/contrato.model.js";
 
 /**
  * Calcula días restantes desde hoy hasta la fecha de vencimiento.
@@ -18,11 +18,11 @@ function diasRestantes(fechaVencimiento) {
  * Lógica de revisión de facturas:
  * - Enviar recordatorio un día antes del vencimiento (marca `recordatorioEnviado`).
  * - Marcar factura como vencida cuando supere la fecha de vencimiento.
- * - Suspender el plan (`activo=false`) si la factura vence.
+ * - Suspender el Contrato (`activo=false`) si la factura vence.
  *
  * @async
  * @function revisarFacturas
- * @returns {Promise<void>} No retorna valor, pero actualiza facturas y planes en BD.
+ * @returns {Promise<void>} No retorna valor, pero actualiza facturas y Contratoes en BD.
  */
 async function revisarFacturas() {
   console.log("[CRON]: Revisando facturas pendientes...");
@@ -36,8 +36,8 @@ async function revisarFacturas() {
     // 🔹 Recordatorio un día antes del vencimiento
     if (dias === 1 && !factura.recordatorioEnviado) {
       console.log(`[REMINDER]: Factura ${factura._id} (${factura.mes}) vence mañana. Cliente: ${factura.clienteId?.email}`);
-      factura.recordatorioEnviado = true;
-      await factura.save();
+      // factura.recordatorioEnviado = true;
+      // await factura.save();
       // Aquí podrías enviar correo real con Nodemailer
     }
 
@@ -49,12 +49,12 @@ async function revisarFacturas() {
         console.log(`[VENCIDO]: Factura ${factura._id} marcada como vencida.`);
       }
 
-      // Suspender plan automáticamente
-      const plan = await Plan.findById(factura.planId);
-      if (plan && plan.activo) {
-        plan.activo = false;
-        await plan.save();
-        console.log(`[SUSPENDIDO]: Plan ${plan._id} suspendido por factura vencida.`);
+      // Suspender Contrato automáticamente
+      const contrato = await Contrato.findById(factura.ContratoId);
+      if (contrato && contrato.activo) {
+        contrato.activo = false;
+        await contrato.save();
+        console.log(`[SUSPENDIDO]: Contrato ${contrato._id} suspendido por factura vencida.`);
       }
     }
   }
