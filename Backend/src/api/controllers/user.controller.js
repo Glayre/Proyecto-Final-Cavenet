@@ -143,7 +143,7 @@ export async function login(req, res, next) {
         urbanizacion: userSafe.direccion.urbanizacion,
         calle: userSafe.direccion.calle,
       },
-      saldoFavorVED: userSafe.saldoFavorVED,
+      saldoFavorUSD: userSafe.saldoFavorUSD,
       plan: plan ? {
         _id: plan._id,
         nombre: plan.nombre,

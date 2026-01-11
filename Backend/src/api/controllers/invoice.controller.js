@@ -70,9 +70,9 @@ export async function createInvoice(req, res, next) {
     // 🔹 Se carga el monto al usuario asociado al cliente ID 
     const user = await User.findById(clienteId);
     if (user) {
-      user.saldoFavorVED = (user.saldoFavorVED) - monto;
+      user.saldoFavorUSD = (user.saldoFavorUSD) - monto;
       await user.save();
-      console.log("✅ Balance del usuario actualizado:", user._id, "Nuevo balance USD:", user.saldoFavorVED);
+      console.log("✅ Balance del usuario actualizado:", user._id, "Nuevo balance USD:", user.saldoFavorUSD);
     } else {
       console.log("⚠️ Usuario no encontrado para clienteId:", clienteId);
     }
@@ -210,7 +210,7 @@ export async function updateInvoice(req, res, next) {
         // 🔹 Actualizar balance del usuario
         const user = await User.findById(invoice.clienteId);
         if (user) {
-          user.saldoFavorVED = (user.saldoFavorVED) + invoice.montoUSD;
+          user.saldoFavorUSD = (user.saldoFavorUSD) + invoice.montoUSD;
           await user.save();
           console.log("✅ Balance del usuario actualizado tras pago:", user._id, "Nuevo balance USD:", user.saldoFavorVED);  
         }
@@ -259,7 +259,7 @@ export async function getInvoiceById(req, res, next) {
     const formatted = {
       id: invoice._id,
       fecha: invoice.fechaEmision ? invoice.fechaEmision.toLocaleDateString("es-VE") : "",
-      montoUSD: invoice.montoUSD,
+      monto: invoice.monto,
       tasaVED: invoice.tasaVED,
       montoBs: (invoice.montoUSD * invoice.tasaVED).toFixed(2),
       montoAbonado: invoice.montoAbonado || 0,

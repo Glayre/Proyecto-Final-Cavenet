@@ -17,7 +17,7 @@ import mongoose from 'mongoose';
  * @property {mongoose.ObjectId} direccion - Referencia al documento de dirección asociado.
  * @property {string} rol - Rol del usuario, puede ser "cliente" o "admin" (por defecto "cliente").
  * @property {string} modoAcceso - Modo de acceso, puede ser "email" o "codigo" (por defecto "email").
- * @property {number} saldoFavorVED - Saldo a favor en VED (por defecto 0).
+ * @property {number} saldoFavorUSD - Saldo a favor en VED (por defecto 0).
  * @property {boolean} isDeleted - Indica si el usuario fue eliminado mediante soft delete (por defecto false).
  * @property {Date} createdAt - Fecha de creación del documento (generada automáticamente por Mongoose).
  * @property {Date} updatedAt - Fecha de última actualización del documento (generada automáticamente por Mongoose).
@@ -37,7 +37,7 @@ const userSchema = new mongoose.Schema(
 
     rol: { type: String, enum: ['cliente', 'admin'], default: 'cliente' },
     modoAcceso: { type: String, enum: ['email', 'codigo'], default: 'email' },
-    saldoFavorVED: { type: Number, default: 0 },
+    saldoFavorUSD: { type: Number, default: 0 },
 
     // Campo para soft delete
     isDeleted: { type: Boolean, default: false }

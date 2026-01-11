@@ -31,6 +31,9 @@ export default function authMiddleware(required = true) {
 
       if (token) {
         const payload = jwt.verify(token, process.env.JWT_SECRET);
+        if (!payload || !payload.sub) {
+          return res.status(401).json({ code: "INVALID_TOKEN", message: "Token inválido" });
+        }
         // Usar "_id" para consistencia con Mongoose
         req.user = { _id: payload.sub, rol: payload.rol };
       }
