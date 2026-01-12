@@ -69,6 +69,11 @@ export const crearContrato = async (req, res) => {
     // 3️⃣ Crear contrato
     const contrato = new Contrato(nuevoContrato);
     await contrato.save();
+    // Actuaalizar usuario para reflejar que tiene un contrato activo y su plan
+    cliente.planId = plan._id;
+    cliente.contratoId = contrato._id;
+
+    await cliente.save();
 
 
     res.status(201).json({mensaje: "Contrato creado exitosamente", datos: contrato});

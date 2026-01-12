@@ -27,6 +27,7 @@ const PaymentSchema = new mongoose.Schema(
     invoiceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice', required: true },
     montoMoneda: { type: String, enum: ['USD', 'VED'], required: true },
     monto: { type: Number, required: true },
+    montoAbonado: { type: Number, default: 0 },
     tasaVED: { type: Number }, // Si aplica
     bancoOrigen: { type: String },
     cuentaDestino: { type: String },

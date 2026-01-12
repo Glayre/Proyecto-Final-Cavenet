@@ -77,7 +77,6 @@ export async function createUser(req, res, next) {
       telefono,
       direccion: direccion._id
     });
-
     // 🔹 Popular la dirección antes de responder y ocultar passwordHash
     const userWithAddress = await User.findById(user._id)
       .populate('direccion')
@@ -127,34 +126,7 @@ export async function login(req, res, next) {
     const userSafe = await User.findById(user._id)
       .populate('direccion');
 
-    const plan = await Plan.findById(user.planId);
-
-    const userinfo = {
-      _id: userSafe._id,
-      cedula: userSafe.cedula,
-      email: userSafe.email,
-      nombre: userSafe.nombre,
-      apellido: userSafe.apellido,
-      telefono: userSafe.telefono,
-      rol: userSafe.rol,
-      direccion: {
-        sede: userSafe.direccion.sede,
-        ciudad: userSafe.direccion.ciudad,
-        urbanizacion: userSafe.direccion.urbanizacion,
-        calle: userSafe.direccion.calle,
-      },
-      saldoFavorUSD: userSafe.saldoFavorUSD,
-      plan: plan ? {
-        _id: plan._id,
-        nombre: plan.nombre,
-        velocidadMbps: plan.velocidadMbps,
-        precioUSD: plan.precioUSD,
-        tipo: plan.tipo,
-        activo: plan.activo
-      } : null
-    };
-
-    res.json({ message: 'Login exitoso', token, user: userinfo });
+    res.json({ message: 'Login exitoso', token, id: userSafe._id});
   } catch (err) {
     next(err);
   }
@@ -182,7 +154,7 @@ export async function login(req, res, next) {
  */
 export async function updateUser(req, res, next) {
   try {
-    const { nombre, apellido, telefono, sede, ciudad, urbanizacion, calle, apartamento } = req.body;
+    const { nombre, apellido, telefono, sede, ciudad, urbanizacion, calle, apartamento, saldoFavorUSD } = req.body;
 
     const user_id = req.user.id;
     const search_id = req.params.id;
@@ -197,6 +169,11 @@ export async function updateUser(req, res, next) {
     if (apellido && !regex.text.test(apellido)) return res.status(400).json({ error: 'Apellido inválido' });
     if (telefono && !regex.phone.test(telefono)) return res.status(400).json({ error: 'Teléfono inválido' });
 
+    if (saldoFavorUSD !== undefined) {
+      if (typeof saldoFavorUSD !== 'number') {
+        return res.status(400).json({ error: 'Saldo a favor USD inválido' });
+      }
+    }
     let direccion;
     if (sede && ciudad && urbanizacion && calle) {
       if (!regex.address.test(sede)) return res.status(400).json({ error: 'Sede inválida' });
@@ -257,19 +234,46 @@ export async function getUsers(req, res, next) {
  */
 export async function getUserById(req, res, next) {
   try {
-    const user_id = req.user.id;
+    const user_id = req.params.id ?? req.user._id;
     const search_id = req.params.id;
 
     // Permitir acceso solo si el usuario es admin o está accediendo a su propio perfil
     if (req.user.rol !== 'admin' && user_id !== search_id) {
       return res.status(403).json({ code: 'FORBIDDEN', message: 'Acceso denegado' });
     }
-
-    const user = await User.findOne({ _id: req.params.id, isDeleted: false })
+    
+    const userSafe = await User.findOne({ _id: req.params.id, isDeleted: false })
       .populate('direccion')
       .select('-passwordHash');
-    if (!user) return res.status(404).json({ error: 'Usuario no encontrado o eliminado' });
-    res.json(user);
+
+    const plan = await Plan.findById(userSafe.planId);
+    const userinfo = {
+      _id: userSafe._id,
+      cedula: userSafe.cedula,
+      email: userSafe.email,
+      nombre: userSafe.nombre,
+      apellido: userSafe.apellido,
+      telefono: userSafe.telefono,
+      rol: userSafe.rol,
+      direccion: {
+        sede: userSafe.direccion.sede,
+        ciudad: userSafe.direccion.ciudad,
+        urbanizacion: userSafe.direccion.urbanizacion,
+        calle: userSafe.direccion.calle,
+      },
+      saldoFavorUSD: userSafe.saldoFavorUSD,
+      plan: plan ? {
+        _id: plan._id,
+        nombre: plan.nombre,
+        velocidadMbps: plan.velocidadMbps,
+        precioUSD: plan.precioUSD,
+        tipo: plan.tipo,
+        activo: plan.activo
+      } : null
+    };
+
+    if (!userSafe) return res.status(404).json({ error: 'Usuario no encontrado o eliminado' });
+    res.json(userinfo);
   } catch (err) {
     next(err);
   }

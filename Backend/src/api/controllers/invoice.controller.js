@@ -82,15 +82,10 @@ export async function createInvoice(req, res, next) {
     res.status(201).json({
       id: invoice._id,
       fecha: fechaEmision.toLocaleDateString("es-VE"),
-      monto: invoice.montoUSD,
+      monto: invoice.monto,
       montoAbonado: invoice.montoAbonado || 0,              // 🔹 nuevo
-      
-      montoPendiente: (invoice.monto - (invoice.montoAbonado || 0)), // 🔹 nuevo
-      tasaVED: invoice.tasaVED,
-      montoBs: (invoice.monto * invoice.tasaVED).toFixed(2),
       estado: invoice.estado,
       detalle: invoice.detalle,
-      moneda: invoice.moneda
     });
 
   } catch (err) {
@@ -112,11 +107,11 @@ export async function getAllInvoices(req, res, next) {
     const formatted = invoices.map(inv => ({
       id: inv._id,
       fecha: inv.fechaEmision ? inv.fechaEmision.toLocaleDateString("es-VE") : "",
-      montoUSD: inv.montoUSD,
+      monto: inv.monto,
       montoAbonado: inv.montoAbonado || 0, // 🔹 nuevo
-      montoPendiente: (inv.montoUSD - (inv.montoAbonado || 0)), // 🔹 nuevo
+      montoPendiente: (inv.monto - (inv.montoAbonado || 0)), // 🔹 nuevo
       tasaVED: inv.tasaVED,
-      montoBs: (inv.montoUSD * inv.tasaVED).toFixed(2),
+      montoBs: (inv.monto * inv.tasaVED).toFixed(2),
       estado: inv.estado,
       detalle: inv.detalle,
       moneda: inv.moneda
@@ -150,11 +145,11 @@ export async function getInvoicesByClient(req, res, next) {
     const formatted = invoices.map(inv => ({
       id: inv._id,
       fecha: inv.fechaEmision ? inv.fechaEmision.toLocaleDateString("es-VE") : "",
-      montoUSD: inv.montoUSD,
+      monto: inv.monto,
       montoAbonado: inv.montoAbonado || 0, // 🔹 nuevo
-      montoPendiente: (inv.montoUSD - (inv.montoAbonado || 0)), // 🔹 nuevo
+      montoPendiente: (inv.monto - (inv.montoAbonado || 0)), // 🔹 nuevo
       tasaVED: inv.tasaVED,
-      montoBs: (inv.montoUSD * inv.tasaVED).toFixed(2),
+      montoBs: (inv.monto * inv.tasaVED).toFixed(2),
       estado: inv.estado,
       detalle: inv.detalle,
       moneda: inv.moneda
@@ -199,23 +194,24 @@ export async function updateInvoice(req, res, next) {
     invoice.referenciaPago = referenciaPago;
 
     if (estado === "pagado") {
-      invoice.fechaPago = new Date();
+  invoice.fechaPago = new Date();
 
-      const plan = await Plan.findById(invoice.planId);
-      if (plan && !plan.activo) {
-        plan.activo = true;
-        await plan.save();
-        console.log("✅ Plan reactivado:", plan._id);
+  const plan = await Plan.findById(invoice.planId);
+  if (plan && !plan.activo) {
+    plan.activo = true;
+    await plan.save();
+    console.log("✅ Plan reactivado:", plan._id);
 
-        // 🔹 Actualizar balance del usuario
-        const user = await User.findById(invoice.clienteId);
-        if (user) {
-          user.saldoFavorUSD = (user.saldoFavorUSD) + invoice.montoUSD;
-          await user.save();
-          console.log("✅ Balance del usuario actualizado tras pago:", user._id, "Nuevo balance USD:", user.saldoFavorVED);  
-        }
-      }
+    // 🔹 Actualizar balance del usuario
+    const user = await User.findById(invoice.clienteId);
+    if (user) {
+      user.saldoFavorUSD = (user.saldoFavorUSD) + invoice.monto;   // ✅ usar monto
+      await user.save();
+      console.log("✅ Balance del usuario actualizado tras pago:", user._id, "Nuevo balance USD:", user.saldoFavorUSD); // ✅ usar saldoFavorUSD
     }
+  }
+}
+
 
     await invoice.save();
     console.log("✅ Factura actualizada:", invoice._id);
@@ -223,12 +219,12 @@ export async function updateInvoice(req, res, next) {
     res.json({
       id: invoice._id,
       fecha: invoice.fechaEmision ? invoice.fechaEmision.toLocaleDateString("es-VE") : "",
-      montoUSD: invoice.montoUSD,
+      monto: invoice.monto,
       tasaVED: invoice.tasaVED,
-      montoBs: (invoice.montoUSD * invoice.tasaVED).toFixed(2),
+      montoBs: (invoice.monto * invoice.tasaVED).toFixed(2),
       estado: invoice.estado === "pagado" ? "Pagada" : invoice.estado === "pendiente" ? "Pendiente" : "Vencida",
       montoAbonado: invoice.montoAbonado || 0,
-      montoPendiente: (invoice.montoUSD - (invoice.montoAbonado || 0)),
+      montoPendiente: (invoice.monto - (invoice.montoAbonado || 0)),
       detalle: invoice.detalle,
       moneda: invoice.moneda
     });
@@ -261,9 +257,9 @@ export async function getInvoiceById(req, res, next) {
       fecha: invoice.fechaEmision ? invoice.fechaEmision.toLocaleDateString("es-VE") : "",
       monto: invoice.monto,
       tasaVED: invoice.tasaVED,
-      montoBs: (invoice.montoUSD * invoice.tasaVED).toFixed(2),
+      montoBs: (invoice.monto * invoice.tasaVED).toFixed(2),
       montoAbonado: invoice.montoAbonado || 0,
-      montoPendiente: (invoice.montoUSD - (invoice.montoAbonado || 0)),
+      montoPendiente: (invoice.monto - (invoice.montoAbonado || 0)),
       estado: invoice.estado === "pagado" ? "Pagada" : invoice.estado === "pendiente" ? "Pendiente" : "Vencida",
       detalle: invoice.detalle,
       moneda: invoice.moneda
