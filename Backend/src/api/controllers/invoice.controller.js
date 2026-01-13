@@ -11,7 +11,6 @@ import obtenerTasaDolar from "../../utils/tasaDolar.js";
 export async function createInvoice(req, res, next) {
   try {
     console.log("➡️ Body recibido en createInvoice:", req.body);
-    console.log("➡️ Usuario autenticado:", req.user);
     const {contratoId} = req.body;
 
     // 🔹 Buscar el contrato para obtener clienteId y planI

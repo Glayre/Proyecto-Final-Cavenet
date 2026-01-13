@@ -1,55 +1,34 @@
 /**
- * @file contrato.js
+ * @file contrato.route.js
  * @description Definición de rutas para la gestión de contratos.
- * Contiene los endpoints principales para crear y listar contratos.
+ * Solo accesible por el administrador para vincular clientes con planes.
  */
 
 import { Router } from "express";
 import { crearContrato, listarContratos } from "../controllers/contrato.controller.js";
-import authMiddleware, {isAdmin} from "../middleware/auth.middleware.js";
+import authMiddleware, { isAdmin } from "../middleware/auth.middleware.js"; // 👈 Middleware de seguridad
 
 const router = Router();
 
 /**
  * @route POST /api/contrato
- * @description Crea un nuevo contrato con los datos enviados en el cuerpo de la petición.
- * @access Público
- * 
- * @example
+ * @description Crea un nuevo contrato. Solo el administrador tiene permiso.
+ * @access Privado (Admin)
+ * * @example
  * // Request Body (JSON)
  * {
- *   "nombres": "Juan",
- *   "apellidos": "Pérez",
- *   "cedula": "12345678",
- *   "correo": "juan@example.com",
- *   "plan": "FullHD"
- * }
- * 
- * // Response (201)
- * {
- *   "mensaje": "Contrato creado exitosamente",
- *   "contrato": { ... }
+ * "clienteId": "65a1b...",
+ * "planId": "65b2c...",
+ * "correoAlternativo": "admin@empresa.com"
  * }
  */
-router.post("/", authMiddleware(true), isAdmin , crearContrato);
+// Aplicamos verifyToken para validar que está logueado e isAdmin para el rol
+router.post("/", authMiddleware(true),  isAdmin, crearContrato);
 
 /**
  * @route GET /api/contrato
- * @description Obtiene la lista completa de contratos registrados.
- * @access Público
- * 
- * @example
- * // Response (200)
- * [
- *   {
- *     "id": 1,
- *     "nombres": "Juan",
- *     "apellidos": "Pérez",
- *     "correo": "juan@example.com",
- *     "plan": "FullHD",
- *     "fechaCreacion": "2025-12-29T07:30:00.000Z"
- *   }
- * ]
+ * @description Obtiene la lista completa de contratos (Vista administrativa).
+ * @access Privado (Admin)
  */
 router.get("/", authMiddleware(true), isAdmin, listarContratos);
 

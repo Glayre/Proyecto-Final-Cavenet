@@ -83,10 +83,10 @@ router.patch("/:id", authMiddleware(true), updateInvoice);
 /**
  * Obtener una factura por ID (el propio cliente o admin).
  *
- * @route GET /api/invoices/:id
+ * @route GET /api/invoices/und/:id
  * @access Cliente/Admin (JWT requerido)
  * @example
- * GET http://localhost:4000/api/invoices/ID_DE_FACTURA
+ * GET http://localhost:4000/api/invoices/und/ID_DE_FACTURA
  */
 router.get("/und/:id", authMiddleware(true), getInvoiceById);
 

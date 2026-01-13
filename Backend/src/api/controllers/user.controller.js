@@ -1,4 +1,4 @@
-import User, { Address } from "../models/user.model.js";
+import User, { Address } from '../models/user.model.js'; // Ajusta la ruta si tu archivo tiene otro nombre o ubicación
 import regex from '../../utils/regex.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
@@ -84,7 +84,7 @@ export async function createUser(req, res, next) {
 
     res.status(201).json(userWithAddress);
   } catch (err) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 }
 
@@ -155,23 +155,26 @@ export async function login(req, res, next) {
 export async function updateUser(req, res, next) {
   try {
     const { nombre, apellido, telefono, sede, ciudad, urbanizacion, calle, apartamento, saldoFavorUSD } = req.body;
-
-    const user_id = req.user.id;
+    console.log("➡️ Actualización de usuario recibida:", req.body);
+    const user_id = req.user._id;
     const search_id = req.params.id;
 
+    console.log(user_id, search_id);
+    
     // Permitir acceso solo si el usuario es admin o está accediendo a su propio perfil
     if (req.user.rol !== 'admin' && user_id !== search_id) {
       return res.status(403).json({ code: 'FORBIDDEN', message: 'Acceso denegado' });
     }
     
-
-    if (nombre && !regex.text.test(nombre)) return res.status(400).json({ error: 'Nombre inválido' });
-    if (apellido && !regex.text.test(apellido)) return res.status(400).json({ error: 'Apellido inválido' });
-    if (telefono && !regex.phone.test(telefono)) return res.status(400).json({ error: 'Teléfono inválido' });
-
-    if (saldoFavorUSD !== undefined) {
-      if (typeof saldoFavorUSD !== 'number') {
-        return res.status(400).json({ error: 'Saldo a favor USD inválido' });
+    if(req.user.rol != 'admin'){
+      if (nombre && !regex.text.test(nombre)) return res.status(400).json({ error: 'Nombre inválido' });
+      if (apellido && !regex.text.test(apellido)) return res.status(400).json({ error: 'Apellido inválido' });
+      if (telefono && !regex.phone.test(telefono)) return res.status(400).json({ error: 'Teléfono inválido' });
+      
+      if (saldoFavorUSD !== undefined) {
+        if (typeof saldoFavorUSD !== 'number') {
+          return res.status(400).json({ error: 'Saldo a favor USD inválido' });
+        }
       }
     }
     let direccion;
@@ -181,19 +184,19 @@ export async function updateUser(req, res, next) {
       if (!regex.address.test(urbanizacion)) return res.status(400).json({ error: 'Urbanización inválida' });
       if (!regex.address.test(calle)) return res.status(400).json({ error: 'Calle inválida' });
       if (apartamento && !regex.address.test(apartamento)) return res.status(400).json({ error: 'Apartamento inválido' });
-
+      
       direccion = await Address.findOne({ sede, ciudad, urbanizacion, calle, apartamento });
       if (!direccion) {
         direccion = await Address.create({ sede, ciudad, urbanizacion, calle, apartamento });
       }
       req.body.direccion = direccion._id;
     }
-
+    
     const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true })
-      .populate('direccion')
-      .select('-passwordHash');
+    .populate('direccion')
+    .select('-passwordHash');
     if (!user || user.isDeleted) return res.status(404).json({ error: 'Usuario no encontrado o eliminado' });
-
+    
     res.json(user);
   } catch (err) {
     next(err);
@@ -245,7 +248,6 @@ export async function getUserById(req, res, next) {
     const userSafe = await User.findOne({ _id: req.params.id, isDeleted: false })
       .populate('direccion')
       .select('-passwordHash');
-
     const plan = await Plan.findById(userSafe.planId);
     const userinfo = {
       _id: userSafe._id,
@@ -312,97 +314,123 @@ export async function deleteUser(req, res, next) {
 
 /**
  * Recuperar contraseña de usuario.
- *
  * Genera un token temporal y envía un correo con enlace de recuperación.
- *
- * @async
+ * * @async
  * @function recoverPassword
- * @param {Object} req - Objeto de solicitud de Express.
- * @param {Object} req.body - Datos de recuperación.
- * @param {string} req.body.email - Correo electrónico del usuario.
- * @param {Object} res - Objeto de respuesta de Express.
- * @param {Function} next - Función para manejar errores.
- * @returns {Object} JSON con confirmación de envío de correo o error.
+ * @returns {Object} JSON con status 200 (éxito), 404 (no encontrado) o 500 (error servidor).
  */
 export async function recoverPassword(req, res, next) {
   try {
     const { email } = req.body;
 
-    // Validar correo
+    // 1. Validaciones básicas de entrada
     if (!email || !regex.email.test(email)) {
       return res.status(400).json({ error: 'Correo electrónico inválido' });
     }
 
-    // Buscar usuario activo
+    // 2. Buscar usuario en la base de datos (Solo activos)
     const user = await User.findOne({ email, isDeleted: false });
+
+    // ❌ Si NO existe en base de datos -> Retornar 404 para el frontend
     if (!user) {
-        console.log(`Solicitud de recuperación recibida para correo inexistente: ${email}`); 
-        return res.json({ message: 'Si el correo existe, se enviará un enlace de recuperación' }); }
+      console.log(`❌ Intento de recuperación: correo no registrado -> ${email}`);
+      return res.status(404).json({ error: 'Correo no encontrado o asociado' });
+    }
 
-
-    // Generar token temporal (15 minutos)
+    // 3. Si EXISTE -> Generar el token de recuperación (JWT)
     const recoveryToken = jwt.sign(
       { sub: user._id, type: 'password_recovery' },
       process.env.JWT_SECRET,
-      { expiresIn: '15m' }
+      { expiresIn: '15m' } // Expira en 15 minutos
     );
 
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${recoveryToken}`;
 
-    // Logs en servidor
+    // 4. Intentar enviar el correo físico
+    try {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
 
-     console.log("📩 Solicitud de recuperación de contraseña");
-     console.log("Usuario:", user.email); 
-     console.log("Token generado:", recoveryToken); 
-     console.log("🔗 Enlace de recuperación:", resetLink); 
-     
-     // 🔹 Enviar también al frontend 
-     return res.json({ 
-      message: 'Si el correo existe, se enviará un enlace de recuperación', 
-      email: user.email, 
-      token: recoveryToken, 
+      await transporter.sendMail({
+        from: `"Soporte Técnico" <${process.env.EMAIL_USER}>`,
+        to: user.email,
+        subject: 'Recuperación de Contraseña',
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #2041E3; border-radius: 10px; max-width: 500px;">
+            <h2 style="color: #2041E3; text-align: center;">Restablecer Contraseña</h2>
+            <p>Hola <strong>${user.nombre}</strong>,</p>
+            <p>Has solicitado recuperar tu acceso a la plataforma de Internet Fibra Óptica.</p>
+            <p>Haz clic en el botón de abajo para cambiar tu contraseña. Este enlace es válido por 15 minutos:</p>
+            <div style="text-align: center; margin: 20px 0;">
+              <a href="${resetLink}" style="background:#2041E3; color:white; padding:12px 25px; text-decoration:none; border-radius:5px; font-weight: bold;">
+                Restablecer Contraseña
+              </a>
+            </div>
+            <p style="font-size: 12px; color: #777;">Si no solicitaste este cambio, puedes ignorar este correo.</p>
+          </div>
+        `
+      });
+      console.log(`✅ Correo enviado exitosamente a: ${user.email}`);
+    } catch (mailError) {
+      // 🚩 AJUSTE: Si falla el envío físico, no enviamos 500. 
+      // Imprimimos el error para depurar y permitimos que el flujo continúe.
+      console.error("⚠️ Error Nodemailer (Revisa credenciales en .env):", mailError.message);
+      console.log("🔗 Link generado para pruebas manuales:", resetLink);
+    }
+
+    // ✅ ÉXITO -> Retornar 200
+    // Enviamos el resetLink en el JSON para que puedas probarlo aunque el correo falle.
+    return res.status(200).json({ 
+      message: 'Se ha enviado un enlace con un código de recuperación a tu correo.',
       resetLink 
-    }); 
-  } catch (err) { 
-    next(err); } }
+    });
+
+  } catch (err) {
+    // 💥 ERROR CRÍTICO -> Retornar 500
+    console.error("🔥 Error 500 en recoverPassword:", err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
 
 /**
  * Restablecer contraseña con token de recuperación.
- *
- * @async
+ * * @async
  * @function resetPassword
- * @param {Object} req - Objeto de solicitud de Express.
- * @param {Object} req.body - Datos de restablecimiento.
- * @param {string} req.body.token - Token JWT de recuperación.
- * @param {string} req.body.newPassword - Nueva contraseña en texto plano.
- * @param {Object} res - Objeto de respuesta de Express.
- * @param {Function} next - Función para manejar errores.
- * @returns {Object} JSON con confirmación de restablecimiento o error.
+ * @param {string} req.body.token - Token JWT recibido por correo.
+ * @param {string} req.body.newPassword - La nueva clave del usuario.
  */
 export async function resetPassword(req, res, next) {
   try {
     const { token, newPassword } = req.body;
 
+    // Validaciones
     if (!token) return res.status(400).json({ error: 'Token requerido' });
     if (!regex.password.test(newPassword)) {
       return res.status(400).json({ error: 'Contraseña inválida (mínimo 8 caracteres, letras y números)' });
     }
 
-    // Verificar token
+    // Verificar validez del token
     let payload;
     try {
       payload = jwt.verify(token, process.env.JWT_SECRET);
-    } catch {
-      return res.status(401).json({ error: 'Token inválido o expirado' });
+    } catch (err) {
+      return res.status(401).json({ error: 'El enlace ha expirado o es inválido' });
     }
 
-    // Validar que sea un token de recuperación
+    // Validar tipo de token
     if (payload.type !== 'password_recovery') {
-      return res.status(400).json({ error: 'Token no válido para recuperación' });
+      return res.status(400).json({ error: 'Acción no permitida' });
     }
 
-    // Actualizar contraseña
+    // Encriptar la nueva contraseña
     const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    // Actualizar en la base de datos
     const user = await User.findByIdAndUpdate(
       payload.sub,
       { passwordHash },
@@ -411,11 +439,14 @@ export async function resetPassword(req, res, next) {
 
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
-    return res.json({ message: 'Contraseña restablecida correctamente' });
+    console.log(`🔐 Contraseña actualizada para: ${user.email}`);
+    return res.status(200).json({ message: 'Contraseña restablecida correctamente' });
+
   } catch (err) {
+    console.error("🔥 Error en resetPassword:", err);
     next(err);
   }
-};
+}
 
 /**
  * Reportar pago de usuario.
@@ -457,13 +488,14 @@ export async function reportarPago(req, res, next) {
     });
 
     const user = await User.findById(clienteId);
+
     if (!user) {
       return res.status(404).json({ error: 'Cliente no encontrado' });
     }
 
    // Actualizar monto abonado y pendiente de la persona
 
-    user.saldoFavorVED += monto*(tasaVED);
+    user.saldoFavorUSD += monto/(tasaVED);
 
     await user.save();
 
@@ -479,8 +511,8 @@ export async function reportarPago(req, res, next) {
 
     factura.montoAbonado += montoAbonado;
 
-    if(factura.montoAbonado >= factura.montoUSD) {
-      factura.estado = 'pagada';
+    if(factura.montoAbonado >= factura.monto) {
+      factura.estado = 'pagado';
     }
 
     await factura.save();

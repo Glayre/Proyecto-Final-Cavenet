@@ -1,8 +1,9 @@
 import { Router } from "express";
 import planRoutes from "./plan.route.js";
 import userRoutes from "./user.route.js";
+import contractRoutes from "./contrato.route.js";
 import invoiceRoutes from "./invoice.route.js";
-import contratoRoutes from "./contrato.route.js"; 
+import registroRoutes from "./registro.route.js"; 
 
 /**
  * Enrutador principal de la API.
@@ -34,6 +35,8 @@ const router = Router();
  */
 router.use("/plans", planRoutes);
 
+
+
 /**
  * Rutas de usuarios.
  *
@@ -47,6 +50,8 @@ router.use("/plans", planRoutes);
  * GET /api/users/:id
  */
 router.use("/users", userRoutes);
+
+
 
 /**
  * Rutas de facturas.
@@ -62,14 +67,35 @@ router.use("/users", userRoutes);
  */
 router.use("/invoices", invoiceRoutes);
 
-/** * Rutas de contratos. 
- * 
- * Todas las rutas relacionadas con la gestión de contratos estarán disponibles 
- * bajo el prefijo `/contrato`. 
+
+
+/**
+ * Rutas de registros.
+ *
+ * Todas las rutas relacionadas con la gestión de registros estarán disponibles 
+ * bajo el prefijo `/registro`. 
+ *
  * @example 
- * POST /api/contrato // Crear contrato 
- * GET /api/contrato // Listar contratos 
+ * POST /api/registro // Crear registro 
+ * GET /api/registro  // Listar registros 
  */ 
-    router.use("/contrato", contratoRoutes);
+router.use("/registro", registroRoutes);
+
+
+
+/** * Rutas de contratos.
+ *
+ * Todas las rutas relacionadas con la gestión de contratos estarán disponibles
+ * bajo el prefijo `/contracts`.
+ * *
+ * @example
+ * POST /api/contracts       // Crear contrato (solo admin)
+ * GET /api/contracts        // Obtener todos los contratos (solo admin)
+ * GET /api/contracts/:id    // Obtener contrato de un cliente
+
+ */
+
+router.use("/contrato", contractRoutes);
+
 
 export default router;

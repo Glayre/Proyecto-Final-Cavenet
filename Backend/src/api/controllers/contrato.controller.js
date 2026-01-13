@@ -1,138 +1,67 @@
-/**
- * @file contrato.controller.js
- * @description Controlador de contratos. Maneja la lógica de creación y consulta de contratos en MongoDB.
- */
-
 import Contrato from "../models/contrato.model.js";
-import User from "../models/user.model.js";   // Modelo de usuarios
-import Plan from "../models/plan.model.js";   // Modelo de planes
+import User from "../models/user.model.js";
+import Plan from "../models/plan.model.js";
 
 /**
  * Crear un nuevo contrato
- * 
- * @function crearContrato
- * @description Valida que el usuario y el plan existan antes de crear el contrato. 
- * Devuelve el contrato creado con el plan y usuario populados.
- * 
- * @param {import("express").Request} req - Objeto de la petición HTTP
- * @param {import("express").Response} res - Objeto de la respuesta HTTP
- * 
- * @example
- * // POST /api/contratos
- * {
- *   "clienteId": "65a1234567890",
- *   "planId": "65b9876543210",
- *   "correoAlternativo": "bGK2D@example.com"
- * }
+ * @description Vincula un usuario existente con un plan y guarda un correo alternativo.
  */
 export const crearContrato = async (req, res) => {
   try {
-    const { clienteId, planId } = req.body;
+    const { clienteId, planId, correoAlternativo } = req.body;
 
-    // 1️⃣ Validar cliente
-    const cliente = await User.findById(clienteId);
-    if (!cliente) {
-      return res.status(404).json({ error: "Cliente no encontrado" });
+    // 1️⃣ Validar campos que envías desde Insomnia
+    if (!clienteId || !planId || !correoAlternativo) {
+      return res.status(400).json({ error: "Faltan campos: clienteId, planId o correoAlternativo" });
     }
 
-    // 2️⃣ Validar plan
-    const plan = await Plan.findById(planId);
-    if (!plan) {
-      return res.status(404).json({ error: "Plan no encontrado" });
-    }
-    /**
-     * Esquema de contrato con validaciones.
-     *
-     * - clienteId: referencia a User
-     * - planId: referencia a Plan
-     * - plan: obligatorio
-     * - nombres: obligatorio, mínimo 2 caracteres
-     * - apellidos: obligatorio
-     * - cedula: obligatorio, solo números (7 a 9 dígitos)
-     * - correo: obligatorio, formato válido
-     * - telefono: opcional, 11 dígitos
-     * - correoAlternativo: opcional, formato válido
-     */
-
-    const nuevoContrato = {
-      clienteId: cliente._id, 
-      planId: plan._id,
-      plan: plan.nombre,
-      nombres: cliente.nombre,
-      apellidos: cliente.apellido,
-      correo: cliente.email,
-      telefono: cliente.telefono,
-      cedula: cliente.cedula,
-      correoAlternativo: req.body.correoAlternativo,
+    // 2️⃣ Verificar que el usuario existe
+    const usuario = await User.findById(clienteId);
+    if (!usuario) {
+      return res.status(404).json({ error: "El usuario (clienteId) no existe" });
     }
 
-    // 3️⃣ Crear contrato
-    const contrato = new Contrato(nuevoContrato);
-    await contrato.save();
-    // Actuaalizar usuario para reflejar que tiene un contrato activo y su plan
-    cliente.planId = plan._id;
-    cliente.contratoId = contrato._id;
+    // 3️⃣ Verificar que el plan existe
+    const planDoc = await Plan.findById(planId);
+    if (!planDoc) {
+      return res.status(404).json({ error: "El plan (planId) no existe" });
+    }
 
-    await cliente.save();
+    // 4️⃣ Crear el documento de Contrato
+    const nuevoContrato = new Contrato({
+      clienteId,
+      planId,
+      correoAlternativo
+    });
+    await nuevoContrato.save();
 
+    // 5️⃣ Actualizar el usuario para que refleje su nuevo plan (Opcional pero recomendado)
+    usuario.planId = planId;
+    await usuario.save();
 
-    res.status(201).json({mensaje: "Contrato creado exitosamente", datos: contrato});
+    // 6️⃣ Respuesta exitosa
+    res.status(201).json({
+      mensaje: "Contrato vinculado y creado exitosamente",
+      datos: nuevoContrato
+    });
   } catch (error) {
-    res.status(400).json({ error: "Error al crear contrato", detalle: error.message });
+    res.status(500).json({ 
+      error: "Error al procesar el contrato", 
+      detalle: error.message 
+    });
   }
 };
-
 /**
- * Listar todos los contratos
- * 
- * @function listarContratos
- * @description Devuelve todos los contratos con el plan y usuario populados.
- * 
- * @param {import("express").Request} req - Objeto de la petición HTTP
- * @param {import("express").Response} res - Objeto de la respuesta HTTP
- * 
- * @example
- * // GET /api/contratos
+ * Listar contratos (Admin)
  */
 export const listarContratos = async (req, res) => {
   try {
     const contratos = await Contrato.find()
-      .populate("planId")
-      .populate("clienteId");
+      .populate("clienteId", "nombre apellido cedula email") // Solo traemos datos necesarios
+      .populate("planId", "nombre precioUSD");
 
     res.status(200).json(contratos);
   } catch (error) {
     res.status(500).json({ error: "Error al listar contratos", detalle: error.message });
   }
 };
-
-/**
- * Obtener contrato por usuario
- * 
- * @function obtenerContratoPorUsuario
- * @description Busca el contrato de un usuario específico y devuelve el plan populado.
- * 
- * @param {import("express").Request} req - Objeto de la petición HTTP
- * @param {import("express").Response} res - Objeto de la respuesta HTTP
- * 
- * @example
- * // GET /api/contratos/usuario/:usuarioId
- */
-export const obtenerContratoPorUsuario = async (req, res) => {
-  try {
-    const { usuarioId } = req.params;
-
-    const contrato = await Contrato.findOne({ usuarioId })
-      .populate("planId")
-      .populate("usuarioId");
-
-    if (!contrato) {
-      return res.status(404).json({ error: "No se encontró contrato para este usuario" });
-    }
-
-    res.status(200).json(contrato);
-  } catch (error) {
-    res.status(500).json({ error: "Error al obtener contrato", detalle: error.message });
-  }
-};
-

@@ -1,6 +1,6 @@
 import cron from "node-cron";
 import Invoice from "../api/models/invoice.model.js";
-import Contrato from "../api/models/contrato.model.js";
+import Registro from "../api/models/registro.model.js"; // 🔹 antes era contrato.model.js
 
 /**
  * Calcula días restantes desde hoy hasta la fecha de vencimiento.
@@ -18,11 +18,11 @@ function diasRestantes(fechaVencimiento) {
  * Lógica de revisión de facturas:
  * - Enviar recordatorio un día antes del vencimiento (marca `recordatorioEnviado`).
  * - Marcar factura como vencida cuando supere la fecha de vencimiento.
- * - Suspender el Contrato (`activo=false`) si la factura vence.
+ * - Suspender el Registro (`activo=false`) si la factura vence.
  *
  * @async
  * @function revisarFacturas
- * @returns {Promise<void>} No retorna valor, pero actualiza facturas y Contratoes en BD.
+ * @returns {Promise<void>} No retorna valor, pero actualiza facturas y registros en BD.
  */
 async function revisarFacturas() {
   console.log("[CRON]: Revisando facturas pendientes...");
@@ -49,12 +49,12 @@ async function revisarFacturas() {
         console.log(`[VENCIDO]: Factura ${factura._id} marcada como vencida.`);
       }
 
-      // Suspender Contrato automáticamente
-      const contrato = await Contrato.findById(factura.ContratoId);
-      if (contrato && contrato.activo) {
-        contrato.activo = false;
-        await contrato.save();
-        console.log(`[SUSPENDIDO]: Contrato ${contrato._id} suspendido por factura vencida.`);
+      // Suspender Registro automáticamente
+      const registro = await Registro.findById(factura.registroId); // 🔹 antes era ContratoId
+      if (registro && registro.activo) {
+        registro.activo = false;
+        await registro.save();
+        console.log(`[SUSPENDIDO]: Registro ${registro._id} suspendido por factura vencida.`);
       }
     }
   }
