@@ -154,50 +154,81 @@ export async function login(req, res, next) {
  */
 export async function updateUser(req, res, next) {
   try {
-    const { nombre, apellido, telefono, sede, ciudad, urbanizacion, calle, apartamento, saldoFavorUSD } = req.body;
-    console.log("➡️ Actualización de usuario recibida:", req.body);
-    const user_id = req.user._id;
-    const search_id = req.params.id;
+    const { 
+      nombre, apellido, telefono, 
+      sede, ciudad, urbanizacion, calle, apartamento, 
+      saldoFavorUSD, rol,
+      currentPassword, newPassword // ⬅️ IMPORTANTE: Capturar estos campos
+    } = req.body;
 
-    console.log(user_id, search_id);
-    
-    // Permitir acceso solo si el usuario es admin o está accediendo a su propio perfil
-    if (req.user.rol !== 'admin' && user_id !== search_id) {
+    const auth_user_id = req.user._id.toString();
+    const target_user_id = req.params.id;
+
+    // 1. Autorización: Solo admin o el propio usuario
+    if (req.user.rol !== 'admin' && auth_user_id !== target_user_id) {
       return res.status(403).json({ code: 'FORBIDDEN', message: 'Acceso denegado' });
     }
-    
-    if(req.user.rol != 'admin'){
-      if (nombre && !regex.text.test(nombre)) return res.status(400).json({ error: 'Nombre inválido' });
-      if (apellido && !regex.text.test(apellido)) return res.status(400).json({ error: 'Apellido inválido' });
-      if (telefono && !regex.phone.test(telefono)) return res.status(400).json({ error: 'Teléfono inválido' });
-      
-      if (saldoFavorUSD !== undefined) {
-        if (typeof saldoFavorUSD !== 'number') {
-          return res.status(400).json({ error: 'Saldo a favor USD inválido' });
-        }
+
+    // 2. Buscar al usuario (Necesitamos el objeto completo para comparar la clave)
+    const user = await User.findById(target_user_id);
+    if (!user || user.isDeleted) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    // 3. 🚩 VALIDACIÓN DE CONTRASEÑA (La clave del problema)
+    if (currentPassword && newPassword) {
+      // Comparar la contraseña actual con la guardada en DB
+      const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!isMatch) {
+        // ❌ Si está mal, retornamos 400 y AQUÍ SE DETIENE TODO
+        return res.status(400).json({ error: 'La contraseña actual es incorrecta' });
       }
+
+      // Validar formato de la nueva contraseña
+      if (!regex.password.test(newPassword)) {
+        return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 8 caracteres, letras y números' });
+      }
+
+      // Encriptar y asignar la nueva contraseña
+      user.passwordHash = await bcrypt.hash(newPassword, 10);
     }
-    let direccion;
+
+    // 4. Actualizar Datos Personales
+    if (nombre) {
+      if (!regex.text.test(nombre)) return res.status(400).json({ error: 'Nombre inválido' });
+      user.nombre = nombre;
+    }
+    if (apellido) {
+      if (!regex.text.test(apellido)) return res.status(400).json({ error: 'Apellido inválido' });
+      user.apellido = apellido;
+    }
+    if (telefono) {
+      if (!regex.phone.test(telefono)) return res.status(400).json({ error: 'Teléfono inválido' });
+      user.telefono = telefono;
+    }
+
+    // 5. Solo admin cambia saldo o rol
+    if (req.user.rol === 'admin') {
+      if (saldoFavorUSD !== undefined) user.saldoFavorUSD = saldoFavorUSD;
+      if (rol) user.rol = rol;
+    }
+
+    // 6. Manejo de Dirección
     if (sede && ciudad && urbanizacion && calle) {
-      if (!regex.address.test(sede)) return res.status(400).json({ error: 'Sede inválida' });
-      if (!regex.address.test(ciudad)) return res.status(400).json({ error: 'Ciudad inválida' });
-      if (!regex.address.test(urbanizacion)) return res.status(400).json({ error: 'Urbanización inválida' });
-      if (!regex.address.test(calle)) return res.status(400).json({ error: 'Calle inválida' });
-      if (apartamento && !regex.address.test(apartamento)) return res.status(400).json({ error: 'Apartamento inválido' });
-      
-      direccion = await Address.findOne({ sede, ciudad, urbanizacion, calle, apartamento });
+      let direccion = await Address.findOne({ sede, ciudad, urbanizacion, calle, apartamento });
       if (!direccion) {
         direccion = await Address.create({ sede, ciudad, urbanizacion, calle, apartamento });
       }
-      req.body.direccion = direccion._id;
+      user.direccion = direccion._id;
     }
-    
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true })
-    .populate('direccion')
-    .select('-passwordHash');
-    if (!user || user.isDeleted) return res.status(404).json({ error: 'Usuario no encontrado o eliminado' });
-    
-    res.json(user);
+
+    // 7. Guardar cambios (Aplica las actualizaciones de clave y datos)
+    await user.save();
+
+    // 8. Responder con datos limpios
+    const userPopulated = await User.findById(user._id)
+      .populate('direccion')
+      .select('-passwordHash');
+
+    res.json(userPopulated);
   } catch (err) {
     next(err);
   }

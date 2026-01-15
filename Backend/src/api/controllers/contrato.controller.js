@@ -10,9 +10,17 @@ export const crearContrato = async (req, res) => {
   try {
     const { clienteId, planId, correoAlternativo } = req.body;
 
-    // 1️⃣ Validar campos que envías desde Insomnia
+    // 1️⃣ Validar campos obligatorios
     if (!clienteId || !planId || !correoAlternativo) {
       return res.status(400).json({ error: "Faltan campos: clienteId, planId o correoAlternativo" });
+    }
+
+    // 🟢 NUEVA VALIDACIÓN: Verificar si el cliente ya tiene un contrato existente
+    const contratoExistente = await Contrato.findOne({ clienteId });
+    if (contratoExistente) {
+      return res.status(400).json({ 
+        error: "El cliente ya posee un contrato vinculado. No se permiten duplicados." 
+      });
     }
 
     // 2️⃣ Verificar que el usuario existe
@@ -35,7 +43,7 @@ export const crearContrato = async (req, res) => {
     });
     await nuevoContrato.save();
 
-    // 5️⃣ Actualizar el usuario para que refleje su nuevo plan (Opcional pero recomendado)
+    // 5️⃣ Actualizar el usuario para que refleje su nuevo plan
     usuario.planId = planId;
     await usuario.save();
 
@@ -51,17 +59,52 @@ export const crearContrato = async (req, res) => {
     });
   }
 };
+
 /**
  * Listar contratos (Admin)
  */
 export const listarContratos = async (req, res) => {
   try {
     const contratos = await Contrato.find()
-      .populate("clienteId", "nombre apellido cedula email") // Solo traemos datos necesarios
+      .populate("clienteId", "nombre apellido cedula email")
       .populate("planId", "nombre precioUSD");
 
     res.status(200).json(contratos);
   } catch (error) {
     res.status(500).json({ error: "Error al listar contratos", detalle: error.message });
+  }
+};
+
+/**
+ * Actualizar estado del contrato (Suspender/Activar)
+ */
+export const actualizarEstadoContrato = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    if (!["activo", "suspendido"].includes(estado)) {
+      return res.status(400).json({ error: "Estado no válido. Use 'activo' o 'suspendido'" });
+    }
+
+    const contratoActualizado = await Contrato.findByIdAndUpdate(
+      id,
+      { estado }, 
+      { new: true, runValidators: true }
+    );
+
+    if (!contratoActualizado) {
+      return res.status(404).json({ error: "Contrato no encontrado" });
+    }
+
+    res.status(200).json({
+      mensaje: `Contrato actualizado a ${estado} exitosamente`,
+      datos: contratoActualizado
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: "Error al actualizar el estado del contrato", 
+      detalle: error.message 
+    });
   }
 };

@@ -7,11 +7,12 @@ import mongoose from "mongoose";
 
 const contratoSchema = new mongoose.Schema(
   {
-    // 🔹 Relación obligatoria con el usuario
+    // 🔹 Relación obligatoria con el usuario - UNICO por cliente
     clienteId: { 
       type: mongoose.Schema.Types.ObjectId, 
       ref: "User", 
-      required: true 
+      required: true,
+      unique: true // 👈 Evita que un mismo cliente tenga múltiples contratos
     },
 
     // 🔹 Relación obligatoria con el plan contratado
@@ -21,7 +22,7 @@ const contratoSchema = new mongoose.Schema(
       required: true 
     },
 
-    // 🔹 Correo para notificaciones administrativas (campo específico que pediste)
+    // 🔹 Correo para notificaciones administrativas
     correoAlternativo: { 
       type: String, 
       required: true,
@@ -29,21 +30,21 @@ const contratoSchema = new mongoose.Schema(
       lowercase: true
     },
 
-    // 🔹 Estado del contrato (útil para gestión administrativa)
+    // 🔹 Estado del contrato
     estado: { 
       type: String, 
       enum: ["activo", "suspendido", "finalizado"], 
       default: "activo" 
     },
 
-    // 🔹 Fecha de firma o inicio (opcional, ya que timestamps trae createdAt)
+    // 🔹 Fecha de firma o inicio
     fechaInicio: { 
       type: Date, 
       default: Date.now 
     }
   },
   {
-    timestamps: true, // Agrega automáticamente createdAt (Fecha de contrato) y updatedAt
+    timestamps: true, // Agrega createdAt y updatedAt automáticamente
   }
 );
 

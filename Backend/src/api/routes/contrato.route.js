@@ -5,7 +5,7 @@
  */
 
 import { Router } from "express";
-import { crearContrato, listarContratos } from "../controllers/contrato.controller.js";
+import { crearContrato, listarContratos, actualizarEstadoContrato } from "../controllers/contrato.controller.js";
 import authMiddleware, { isAdmin } from "../middleware/auth.middleware.js"; // 👈 Middleware de seguridad
 
 const router = Router();
@@ -31,5 +31,12 @@ router.post("/", authMiddleware(true),  isAdmin, crearContrato);
  * @access Privado (Admin)
  */
 router.get("/", authMiddleware(true), isAdmin, listarContratos);
+
+/**
+ * @route PATCH /api/contrato/:id
+ * @description Actualiza el estado de un contrato (activo/suspendido).
+ * @access Privado (Admin)
+ */
+router.patch("/:id", authMiddleware(true), isAdmin, actualizarEstadoContrato);
 
 export default router;

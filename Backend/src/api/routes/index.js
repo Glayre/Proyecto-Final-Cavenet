@@ -4,6 +4,7 @@ import userRoutes from "./user.route.js";
 import contractRoutes from "./contrato.route.js";
 import invoiceRoutes from "./invoice.route.js";
 import registroRoutes from "./registro.route.js"; 
+import contactoRoutes from "./contacto.routes.js"; // 👈 Se usa la 's' para coincidir con tu archivo físico
 
 /**
  * Enrutador principal de la API.
@@ -13,89 +14,45 @@ import registroRoutes from "./registro.route.js";
  *
  * @constant
  * @type {express.Router}
- *
- * @example
- * // Uso en server.js
- * import routes from "./api/routes/index.js";
- * app.use("/api", routes);
  */
 const router = Router();
 
 /**
  * Rutas de planes.
- *
- * Todas las rutas relacionadas con la gestión de planes estarán disponibles
- * bajo el prefijo `/plans`.
- *
- * @example
- * GET /api/plans
- * POST /api/plans
- * PUT /api/plans/:id
- * DELETE /api/plans/:id
+ * Prefijo: /api/plans
  */
 router.use("/plans", planRoutes);
 
-
-
 /**
  * Rutas de usuarios.
- *
- * Todas las rutas relacionadas con la gestión de usuarios estarán disponibles
- * bajo el prefijo `/users`.
- *
- * @example
- * POST /api/users/register
- * POST /api/users/login
- * GET /api/users
- * GET /api/users/:id
+ * Prefijo: /api/users
  */
 router.use("/users", userRoutes);
 
-
-
 /**
  * Rutas de facturas.
- *
- * Todas las rutas relacionadas con la gestión de facturas estarán disponibles
- * bajo el prefijo `/invoices`.
- *
- * @example
- * POST /api/invoices        // Crear factura (solo admin)
- * GET /api/invoices         // Obtener todas las facturas (solo admin)
- * GET /api/invoices/:id     // Obtener facturas de un cliente
- * PATCH /api/invoices/:id   // Actualizar estado de factura (pago/vencida)
+ * Prefijo: /api/invoices
  */
 router.use("/invoices", invoiceRoutes);
 
-
-
 /**
  * Rutas de registros.
- *
- * Todas las rutas relacionadas con la gestión de registros estarán disponibles 
- * bajo el prefijo `/registro`. 
- *
- * @example 
- * POST /api/registro // Crear registro 
- * GET /api/registro  // Listar registros 
+ * Prefijo: /api/registro
  */ 
 router.use("/registro", registroRoutes);
 
-
-
 /** * Rutas de contratos.
- *
- * Todas las rutas relacionadas con la gestión de contratos estarán disponibles
- * bajo el prefijo `/contracts`.
- * *
- * @example
- * POST /api/contracts       // Crear contrato (solo admin)
- * GET /api/contracts        // Obtener todos los contratos (solo admin)
- * GET /api/contracts/:id    // Obtener contrato de un cliente
-
+ * Prefijo: /api/contrato
  */
-
 router.use("/contrato", contractRoutes);
 
+/** * Rutas de contacto.
+ * * Gestiona los mensajes enviados desde el formulario de la página principal.
+ * Prefijo: /api/contacto
+ * * @example 
+ * POST /api/contacto // Para enviar el formulario
+ * GET /api/contacto  // Para listar mensajes recibidos
+ */
+router.use("/contacto", contactoRoutes); // 👈 Registro habilitado
 
 export default router;
